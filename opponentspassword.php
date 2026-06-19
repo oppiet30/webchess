@@ -2,7 +2,7 @@
 // $Id: opponentspassword.php,v 1.6 2010/08/15 09:56:12 sandking Exp $
 
 /*
-    This file is part of WebChess. http://webchess.sourceforge.net
+    This file is part of WebChess. https://github.com/thorium/webchess
 	Copyright 2010 Jonathan Evraire, Rodrigo Flores
 
     WebChess is free software: you can redistribute it and/or modify
@@ -19,12 +19,15 @@
     along with WebChess.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-	session_start();
+	/* load settings (also pulls in the security helpers) */
+	if (!isset($_CONFIG))
+		require 'config.php';
+
+	/* start a hardened session */
+	secure_session_start();
 
 	if (!isset($_CHESSUTILS))
 		require 'chessutils.php';
-
-	fixOldPHPVersions();
 
 	/* check session status */
 	require 'sessioncheck.php';
@@ -38,17 +41,29 @@
 	/* check if submitting opponents login information */
 	if (isset($_POST['opponentsID']))
 	{
-		$opponentsID = $_POST['opponentsID'];
-		$opponentsNick = $_POST['opponentsNick'];
+		/* this branch is a real password submission from our own form */
+		csrf_check();
 
-		/* get opponents password from DB */
-		$tmpQuery = "SELECT password FROM " . $CFG_TABLE[players] . " WHERE playerID = ".$opponentsID;
-		$tmpPassword = mysql_query($tmpQuery);
-		$dbPassword = mysql_result($tmpPassword, 0);
+		/* The logged-in player must belong to this game. Derive the opponent
+		   from the game itself rather than trusting the posted id/nick, so this
+		   form cannot be abused as a password oracle against arbitrary accounts. */
+		$gameID = $_POST['gameID'] ?? null;
+		requirePlayerInGame($gameID);
 
-		/* check to see if supplied password matched that of the DB */
-		if ($dbPassword == md5($_POST['pwdPassword']))
+		$game = db_row("SELECT whitePlayer, blackPlayer FROM " . $CFG_TABLE[games] . " WHERE gameID = ?", [$gameID]);
+		$opponentsID = ($game['whitePlayer'] == $_SESSION['playerID']) ? $game['blackPlayer'] : $game['whitePlayer'];
+		$opponentsNick = db_value("SELECT nick FROM " . $CFG_TABLE[players] . " WHERE playerID = ?", [$opponentsID]);
+
+		/* get opponents password hash from DB */
+		$dbPassword = db_value("SELECT password FROM " . $CFG_TABLE[players] . " WHERE playerID = ?", [$opponentsID]);
+
+		/* check to see if supplied password matches that of the DB (legacy md5 supported) */
+		if ($dbPassword !== null && verify_password($_POST['pwdPassword'], $dbPassword))
 		{
+			/* transparently upgrade legacy/outdated hashes */
+			if (password_needs_upgrade($dbPassword))
+				db_query("UPDATE " . $CFG_TABLE[players] . " SET password = ? WHERE playerID = ?", [hash_password($_POST['pwdPassword']), $opponentsID]);
+
 			$_SESSION['isSharedPC'] = true;
 
 			/* load game */
@@ -64,10 +79,11 @@
 	/* else user is arriving here for the first time */
 	else
 	{
+		/* only a participant may open the shared-PC prompt for this game */
+		requirePlayerInGame($_POST['gameID']);
+
 		/* get the players associated with this game */
-		$tmpQuery = "SELECT whitePlayer, blackPlayer FROM " . $CFG_TABLE[games] . " WHERE gameID = ".$_POST['gameID'];
-		$tmpGameData = mysql_query($tmpQuery);
-		$tmpPlayers = mysql_fetch_array($tmpGameData, MYSQL_ASSOC);
+		$tmpPlayers = db_row("SELECT whitePlayer, blackPlayer FROM " . $CFG_TABLE[games] . " WHERE gameID = ?", [$_POST['gameID']]);
 
 		/* determine which one is the opponent of the player logged in */
 		if ($tmpPlayers['whitePlayer'] == $_SESSION['playerID'])
@@ -76,12 +92,8 @@
 			$opponentsID = $tmpPlayers['whitePlayer'];
 
 		/* get the opponents information */
-		$tmpQuery = "SELECT nick FROM " . $CFG_TABLE[players] . " WHERE playerID = ".$opponentsID;
-		$tmpNick = mysql_query($tmpQuery);
-		$opponentsNick = mysql_result($tmpNick, 0);
+		$opponentsNick = db_value("SELECT nick FROM " . $CFG_TABLE[players] . " WHERE playerID = ?", [$opponentsID]);
 	}
-
-	mysql_close();
 ?>
 
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
@@ -89,7 +101,9 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="stylesheet" href="userlogin.css" type="text/css" />
+<link rel="stylesheet" href="responsive.css" type="text/css" />
 <title><?php echo APP_NAME; ?> :: <?php echo gettext("Login");?></title>
 <script language="javascript" type="text/javascript">
 window.onload = function()
@@ -117,9 +131,10 @@ window.onload = function()
 				<div class="form-block">
                                         <div class="inputlabel"><?php echo gettext("Password");?></div>
 					<div><input id="pwdPassword" name="pwdPassword" type="password" class="inputbox" size="15" /></div>
-					<input name="opponentsNick" type="hidden" value="<?php echo($opponentsNick); ?>" />
-					<input name="opponentsID" type="hidden" value="<?php echo($opponentsID); ?>" />
-					<input name="gameID" value="<?php echo ($_POST['gameID']); ?>" type="hidden" />
+					<?php echo csrf_field(); ?>
+					<input name="opponentsNick" type="hidden" value="<?php echo h($opponentsNick); ?>" />
+					<input name="opponentsID" type="hidden" value="<?php echo h($opponentsID); ?>" />
+					<input name="gameID" value="<?php echo h($_POST['gameID'] ?? ''); ?>" type="hidden" />
 					<div align="left">
 						<input type="submit" name="login" class="button" value="<?php echo gettext("Login");?>" />
 						<input name="Cancel" class="button" value="<?php echo gettext("Cancel");?>" type="button" onClick="window.open('mainmenu.php', '_self')" /></div>
@@ -128,7 +143,7 @@ window.onload = function()
 		</div>
 		<div class="login-text">
 			<div class="ctr"><img src="images/webchess.jpg" width="65" height="92" alt="security" /></div>
-                        <p><?php echo gettext("Enter password for $opponentsNick");?></p>
+                        <p><?php echo gettext("Enter password for ") . h($opponentsNick);?></p>
     	</div>
 		<div class="clr"></div>
 	</div>

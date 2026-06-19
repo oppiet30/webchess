@@ -967,7 +967,7 @@ function read_Game($nkMoves) {
     global $nkNotation;
     set_first_Position();
     $nkl = 0;
-    while ($nkrow = mysql_fetch_array ($nkMoves)) {
+    while ($nkrow = $nkMoves->fetch()) {
         $nkl++;
         if (!add_Move($nkrow["Move"]))
                return FALSE;

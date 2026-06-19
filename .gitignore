@@ -1,0 +1,8 @@
+# Local secrets / environment-specific configuration
+config.local.php
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+*~

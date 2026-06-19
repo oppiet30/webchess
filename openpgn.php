@@ -2,7 +2,7 @@
 // $Id: openpgn.php,v 1.3 2010/08/14 16:57:54 sandking Exp $
 
 /*
-    This file is part of WebChess. http://webchess.sourceforge.net
+    This file is part of WebChess. https://github.com/thorium/webchess
 	Copyright 2010 Jonathan Evraire, Rodrigo Flores, Dadi Jonsson
 
     WebChess is free software: you can redistribute it and/or modify
@@ -19,11 +19,11 @@
     along with WebChess.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-	session_start();
-
-	/* load settings */
+	/* load settings (also pulls in the security helpers) */
 	if (!isset($_CONFIG))
 		require 'config.php';
+
+	secure_session_start();
 
 	/* define constants */
 	require 'chessconstants.php';
@@ -34,11 +34,8 @@
 	require 'gui.php';
 	require 'chessdb.php';
 
-	/* allow WebChess to be run on PHP systems < 4.1.0, using old http vars */
-#	fixOldPHPVersions();
-
-	/* check session status */
-//	require 'sessioncheck.php';
+	/* check session status (must be logged in to export a game) */
+	require 'sessioncheck.php';
 
 	/* debug flag */
 	define ("DEBUG", 0);
@@ -62,5 +59,4 @@ header('Content-Disposition: attachment; filename="' .$output_file . '"');
 loadHistory();
 ReturnGameInfo($_SESSION['gameID']);
 writePGN();
-mysql_close();
 ?>

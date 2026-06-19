@@ -2,7 +2,7 @@
 // $Id: capt.php,v 1.51 2013/12/07 20:30:00 gitjake Exp $
 
 /*
-    This file is part of WebChess. http://webchess.sourceforge.net
+    This file is part of WebChess. https://github.com/thorium/webchess
 	Copyright 2010 Jonathan Evraire, Rodrigo Flores
 
     WebChess is free software: you can redistribute it and/or modify
@@ -22,12 +22,12 @@
 /* connect to database */
 require 'connectdb.php';
 
-$f=mysql_query("SELECT * FROM " . $CFG_TABLE[history] . " WHERE ((replaced > '') OR (curPiece = 'pawn' AND toCol <> fromCol AND replaced IS NULL)) AND gameID =  '".$_SESSION['gameID']."' ORDER BY curColor DESC, replaced DESC");
+$f=db_query("SELECT * FROM " . $CFG_TABLE[history] . " WHERE ((replaced > '') OR (curPiece = 'pawn' AND toCol <> fromCol AND replaced IS NULL)) AND gameID =  ? ORDER BY curColor DESC, replaced DESC", [$_SESSION['gameID']]);
 
 $c=0;
 $d=0;
 echo('var captPieces = [[');
-while($row=mysql_fetch_array($f, MYSQL_ASSOC)){
+while($row=$f->fetch()){
 	if(false !== stripos($row['curColor'], 'white'))
 		$c++;
 	if($c==1){
@@ -40,7 +40,7 @@ while($row=mysql_fetch_array($f, MYSQL_ASSOC)){
 	if($row['replaced'] == '')
 		$row['replaced'] = 'pawn';
 
-	echo "'".$row['replaced']."'";
+	echo "'".h($row['replaced'])."'";
 
 } // End while
 

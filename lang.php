@@ -3,7 +3,7 @@
 // $Id: lang.php,v 1.1 2013/12/08 14:00:00 gitjake Exp $
 
 /*
-    This file is part of WebChess. http://webchess.sourceforge.net
+    This file is part of WebChess. https://github.com/thorium/webchess
 	Copyright 2010 Jonathan Evraire, Rodrigo Flores
 
     WebChess is free software: you can redistribute it and/or modify

@@ -1,7 +1,7 @@
 <?php
 
 /*
-    This file is part of WebChess. http://webchess.sourceforge.net
+    This file is part of WebChess. https://github.com/thorium/webchess
 	Copyright 2010 Jonathan Evraire, Rodrigo Flores
 
     WebChess is free software: you can redistribute it and/or modify
@@ -18,7 +18,12 @@
     along with WebChess.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-session_start();
+	/* load settings (also pulls in the security helpers) */
+	if (!isset($_CONFIG))
+		require 'config.php';
+
+	/* start a hardened session */
+	secure_session_start();
 
 	/* check session status */
 	require 'sessioncheck.php';
@@ -28,8 +33,9 @@ session_start();
 <html>
 
 	<head>
-		<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
-		<meta name="generator" content="Adobe GoLive 6">
+		<meta http-equiv="content-type" content="text/html;charset=UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<link rel="stylesheet" href="responsive.css" type="text/css">
 		<title>Send Message</title>
 
 <?php
@@ -47,34 +53,30 @@ session_start();
 	$box = $lisega_medium_blue;
 	$content = $real_white;
 
-if (!isset($_CONFIG))
-                require 'config.php';
-
 require "connectdb.php";
 $id=$_SESSION['playerID'];
 
 if(!empty($_POST['newMessage']))
 {
-	echo("<PRE>");
-	print_r($_POST);
-	echo("</PRE>");
-        $fromPerson=($_POST['from'])?$_POST['from']:"NULL";
-        $toPerson=($_POST['to'])?$_POST['to']:"NULL";
+	/* state-changing POST: require a valid CSRF token */
+	csrf_check();
 
-	echo("From $fromPerson, To $toPerson<br>");
+        /* the sender is always the authenticated user, never a posted value */
+        $fromPerson = $id;
+        $toPerson   = !empty($_POST['to'])   ? $_POST['to']   : null;
 
-        if ( ($fromPerson!=NULL) && ($toPerson!=NULL) ) {
-        $mGame=($_POST['forGame'])?$_POST['from']:"NULL";
-        $msgtitle=mysql_real_escape_string($_POST['txtTitle']);
-        $msgtext=mysql_real_escape_string($_POST['txtMessage']);
+        if ( ($fromPerson !== null) && ($toPerson !== null) ) {
+        $mGame = (!empty($_POST['forGame']) && is_numeric($_POST['forGame'])) ? $_POST['forGame'] : null;
+        $msgtitle=$_POST['txtTitle'];
+        $msgtext=$_POST['txtMessage'];
         if($_POST['msgType']=="Article")
                 $msgtype="0";
         else
                 $msgtype="0"; // Always 0... yet..
 
-        $sql = "INSERT INTO " . $CFG_TABLE[communication] . " (gameID,fromID,toID,title,text,postDate,expireDate,ack,commType) ";
-        $sql .= "VALUES ( $mGame , $fromPerson , $toPerson, '$msgtitle', '$msgtext', NOW( ) , NULL , '0', '$msgtype' );";
-        mysql_query($sql) or die("can't do query: $sql");
+        db_query("INSERT INTO " . $CFG_TABLE[communication] . " (gameID,fromID,toID,title,text,postDate,expireDate,ack,commType) " .
+                 "VALUES ( ? , ? , ?, ?, ?, NOW( ) , NULL , '0', ? )",
+                 [$mGame, $fromPerson, $toPerson, $msgtitle, $msgtext, $msgtype]);
 ?>
 Message Sent!
 <script language="javascript">
@@ -92,24 +94,24 @@ die();
 	<body bgcolor="#808080">
 		<div align="center">
 			<form action="" method="post" name="FormName">
+				<?php echo csrf_field(); ?>
 				Message Recipient:<br>
-				<input type="hidden" name="from" value="<?php echo $id; ?>">
+				<input type="hidden" name="from" value="<?php echo h($id); ?>">
 				<select name="to" size="1">
 <?php
 
-					$tmpQuery="SELECT playerID, nick FROM " . $CFG_TABLE[players] . " WHERE playerID <> ".$id." ORDER BY nick ASC";
-	                                $tmpPlayers = mysql_query($tmpQuery) or die("Sorry: $tmpQuery");
-                                        while($tmpPlayer = mysql_fetch_array($tmpPlayers, MYSQL_ASSOC))
+					$tmpPlayers = db_query("SELECT playerID, nick FROM " . $CFG_TABLE[players] . " WHERE playerID <> ? ORDER BY nick ASC", [$id]);
+                                        while($tmpPlayer = $tmpPlayers->fetch())
                                         {
                                                 if ($tmpPlayer['nick']){
 						if($tmpPlayer['playerID']==$_GET['to'])
-        	                                        echo("<option value='".$tmpPlayer['playerID']."' selected> ".$tmpPlayer['nick']."</option>\n");
+        	                                        echo("<option value='".h($tmpPlayer['playerID'])."' selected> ".h($tmpPlayer['nick'])."</option>\n");
 						else
-                	                                echo("<option value='".$tmpPlayer['playerID']."'> ".$tmpPlayer['nick']."</option>\n");
+                	                                echo("<option value='".h($tmpPlayer['playerID'])."'> ".h($tmpPlayer['nick'])."</option>\n");
 						}
                                         }
 
-?>				
+?>
 				</select><br>
 				<br>
 				Message Subject:<br>

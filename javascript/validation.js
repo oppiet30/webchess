@@ -1,5 +1,5 @@
 /*
-    This file is part of WebChess. http://webchess.sourceforge.net
+    This file is part of WebChess. https://github.com/thorium/webchess
 	Copyright 2010 Jonathan Evraire, Rodrigo Flores, Dadi Jonsson
 
     WebChess is free software: you can redistribute it and/or modify
@@ -377,9 +377,21 @@ function GamePiece()
 			if (toCol - fromCol == 2)
 				rookCol = 7;
 
+			/* there must actually be a friendly rook in the corner to castle
+			   with (it may have been captured) */
+			if (((board[fromRow][rookCol] & COLOR_MASK) != ROOK)
+					|| (getPieceColor(board[fromRow][rookCol]) != tmpColor))
+			{
+				errMsg = "Can only castle with a rook still on its starting square.";
+				return false;
+			}
+
 			/* ToDo: chessHistory check can probably be cut in half by only checking every other move (ie: current color's moves) */
 			for (var i = 0; i <= numMoves; i++)
 			{
+				/* only this player's own earlier moves affect their castling rights */
+				if (chessHistory[i][CURCOLOR] != tmpColor)
+					continue;
 				/* if king has already moved */
 				if ((chessHistory[i][FROMROW] == fromRow) && (chessHistory[i][CURPIECE] == "king"))
 				{

@@ -1,6 +1,6 @@
 <?php
 /*
-    This file is part of WebChess. http://webchess.sourceforge.net
+    This file is part of WebChess. https://github.com/thorium/webchess
 	Copyright 2010 Jonathan Evraire, Rodrigo Flores
 
     WebChess is free software: you can redistribute it and/or modify
@@ -17,13 +17,13 @@
     along with WebChess.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-	session_start();
-
 	/* load settings */
 	if (!isset($_CONFIG)) {
 		require 'config.php';
         include_once 'lang.php';
 	}
+
+	secure_session_start();
 
 	/* load external functions for setting up new game */
 	require 'chessutils.php';
@@ -51,7 +51,9 @@
 
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="mainmenu.css" type="text/css" />
+    <link rel="stylesheet" href="responsive.css" type="text/css" />
     <script type="text/javascript" src="javascript/messages.js"></script>
     <title><?php echo APP_NAME . " :: " . gettext("Message View");?></title>
 </head>
@@ -68,10 +70,15 @@
         {
             $messageID = $_POST['messageID'];
 
-            $SqlQuery="SELECT * FROM " . $CFG_TABLE[communication] . " WHERE commID = $messageID";
-            $tmpGames = mysql_query($SqlQuery);
+            /* a user may only view messages addressed to them (or broadcasts),
+               never another player's private message */
+            $tmpGames = db_query(
+                "SELECT * FROM " . $CFG_TABLE[communication] . " WHERE commID = ? AND (toID = ? OR toID IS NULL)",
+                [$messageID, $_SESSION['playerID']]
+            );
+            $messageRows = $tmpGames->fetchAll();
 
-            if (mysql_num_rows($tmpGames) == 0)
+            if (count($messageRows) == 0)
             {
             ?>
                 <div class="inputlabel"><?php echo gettext(" Message not found!");?> </div>
@@ -81,13 +88,11 @@
             <?php
             } else {
                 $rowNbr = 0;
-                while($tmpGame = mysql_fetch_array($tmpGames, MYSQL_ASSOC))
+                foreach($messageRows as $tmpGame)
                 {
                 if($tmpGame['fromID']!=0)
                 {
-                    $innerSQL = "SELECT * FROM " . $CFG_TABLE[players] . " WHERE playerID = " . $tmpGame['fromID'];
-                    $innerRes = mysql_query($innerSQL);
-                    $tempRes = mysql_fetch_array($innerRes, MYSQL_ASSOC);
+                    $tempRes = db_row("SELECT * FROM " . $CFG_TABLE[players] . " WHERE playerID = ?", [$tmpGame['fromID']]);
                     $FromPlayer = $tempRes['nick'];
                 } else {
                     $FromPlayer = APP_NAME . gettext("Administrator");
@@ -95,24 +100,25 @@
                 ?>
                     <div class="messageheader">
                     <?php
-                        echo gettext("From:") . " " . htmlspecialchars($FromPlayer); 
+                        echo gettext("From:") . " " . h($FromPlayer);
                         if($tmpGame['fromID']!=0) {
-                            echo " (<a href=\"javascript:MessagePlayer(" . $tmpGame['fromID'] . ")\">" . gettext("Reply") . "</a>)"; 
+                            echo " (<a href=\"javascript:MessagePlayer(" . h($tmpGame['fromID']) . ")\">" . gettext("Reply") . "</a>)";
                         }
-                        echo " " . gettext("on") . " " . $tmpGame['postDate'];
-                    
+                        echo " " . gettext("on") . " " . h($tmpGame['postDate']);
+
                         if($tmpGame['fromID']!=0) {
-                            echo " [<a href=\"javascript:HideMessage(" . $messageID . ")\">" . gettext("Archive") . "</a>]";
+                            echo " [<a href=\"javascript:HideMessage(" . h($messageID) . ")\">" . gettext("Archive") . "</a>]";
                         }
                     ?>
                     </div>
                     <form name="messageHideForm" action="mainmenu.php" method="post">
                     <input type="hidden" name="messageID" />
                     <input type="hidden" name="ToDo" value="HideMessage" />
+                    <?php echo csrf_field(); ?>
                     </form>
-                    <div class="inputlabel"> <?php echo htmlspecialchars($tmpGame['title']);?> </div>
+                    <div class="inputlabel"> <?php echo h($tmpGame['title']);?> </div>
                     <div>
-                        <p> <?php echo str_replace("\n", "</p><p>", htmlspecialchars($tmpGame['text']));?> </p>
+                        <p> <?php echo str_replace("\n", "</p><p>", h($tmpGame['text']));?> </p>
                     </div>
                 <?php
                 }

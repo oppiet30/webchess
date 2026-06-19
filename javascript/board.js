@@ -1,7 +1,7 @@
 // $Id: board.js,v 1.91 2013/12/07 20:00:00 gitjake Exp $
 
 /*
-    This file is part of WebChess. http://webchess.sourceforge.net
+    This file is part of WebChess. https://github.com/thorium/webchess
 	Copyright 2010 Jonathan Evraire, Rodrigo Flores, Dadi Jonsson
 
     WebChess is free software: you can redistribute it and/or modify
@@ -253,7 +253,15 @@ function htmlBoard()
 	}
 	var j = 1;
 
-	theBoard = '<table id="theBoard" cellpadding="0" style="border:1px solid #888; padding:0; border-collapse: collapse;border-spacing:0; margin-bottom:5px;">';
+	var bw = Math.round(borderWidth);
+	var totalW = 2 * bw + 8 * squareSize;
+	theBoard = '<table id="theBoard" cellpadding="0" style="border:1px solid #888; padding:0; border-collapse: collapse;border-spacing:0; margin-bottom:5px; table-layout:fixed; width:' + totalW + 'px;">';
+	/* fixed column widths (border, 8 files, border) keep the board from resizing
+	   by a pixel or two as squares gain/lose pieces */
+	theBoard += '<colgroup><col style="width:' + bw + 'px;">';
+	for (var cg = 0; cg < 8; cg++)
+		theBoard += '<col style="width:' + squareSize + 'px;">';
+	theBoard += '<col style="width:' + bw + 'px;"></colgroup>';
 	theBoard += '<tr id="bordertop" style="height:' + borderWidth + 'px;"><td colspan="10" class="' + classHeader + '">&nbsp;</td></tr>';
 	theBoard += '<tr><td id="rank' + rank-- + '" class="' + classHeader + '" width="' + borderWidth + '">' + rankLabel + '</td>';
 	var row = 0;

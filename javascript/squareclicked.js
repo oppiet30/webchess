@@ -1,7 +1,7 @@
 // $Id: squareclicked.js,v 1.6 2010/08/14 16:57:54 sandking Exp $
 
 /*
-    This file is part of WebChess. http://webchess.sourceforge.net
+    This file is part of WebChess. https://github.com/thorium/webchess
 	Copyright 2010 Jonathan Evraire, Rodrigo Flores, Dadi Jonsson
 
     WebChess is free software: you can redistribute it and/or modify
@@ -71,10 +71,24 @@
 				if (DEBUG)
 					alert("Move is valid, updating game...");
 
+				/* Compute these BEFORE the board is mutated below (thePiece must be
+				   read from the source square while the piece is still there). */
+				var ennemyColor = "white";
+				if (curColor == "white")
+					ennemyColor = "black";
+				var isCapture = (board[row][col] != 0);
+				var thePiece = getPieceName(board[fromRow][fromCol]);
+
+				/* remember what (if anything) is being captured, for local play */
+				var capturedName = null, capturedColor = null;
+				if (isCapture)
+				{
+					capturedName = getPieceName(board[row][col]);
+					capturedColor = getPieceColor(board[row][col]);
+				}
+
 				// Note the move in the history of the game
 				// Note that this entry won't be used unless numMoves is incremented
-				// Important: Some checks below need this entry, while it would cause others to fail
-				// Therefore numMoves must be locally incremented and then reset again when it's needed
 				var idx = numMoves + 1;
 				chessHistory[idx] = new Array();
 				chessHistory[idx][CURPIECE] = thePiece;
@@ -83,12 +97,6 @@
 				chessHistory[idx][FROMCOL] = fromCol;
 				chessHistory[idx][TOROW] = row;
 				chessHistory[idx][TOCOL] = col;
-
-				var ennemyColor = "white";
-				if (curColor == "white")
-					ennemyColor = "black";
-				var isCapture = (board[row][col] != 0);
-				var thePiece = getPieceName(board[fromRow][fromCol]);
 
 				/* update board with move (client-side) */
 				board[row][col] = board[fromRow][fromCol];
@@ -110,29 +118,38 @@
 				else if((thePiece == 'pawn') && (col != fromCol) && (!isCapture))
 				{	/* if this is an en passant capture, the captured pawn must be removed */
 					board[fromRow][col] = 0;
+					capturedName = 'pawn';
+					capturedColor = ennemyColor;
 				}
+
+				var epCol = -1;
+				if (thePiece == 'pawn' && Math.abs(row - fromRow) == 2)	// Pawn double advance
+					epCol = col;	// The column of the en passant square
 
 				if (isInCheck(ennemyColor))
 				{
 					document.gamedata.isInCheck.value = "true";
-					if(thePiece == 'pawn' && Math.abs(row - fromRow) == 2)	// Pawn double advance
-						var epCol = col;	// The column of the en passant square
-					else
-						var epCol = -1;
 					document.gamedata.isCheckMate.value = isCheckMate(ennemyColor, epCol);
 				}
 				else
 				{	// Not in check
 					document.gamedata.isInCheck.value = "false";
 				}
-				document.gamedata.submit();
+
+				/* Local hot-seat play applies the move in the browser; online play
+				   submits it to the server. */
+				if (typeof localPlay !== 'undefined' && localPlay)
+					localApplyMove(fromRow, fromCol, row, col, thePiece, ennemyColor, epCol, capturedName, capturedColor);
+				else
+					document.gamedata.submit();
 			}
 			else
 			{
 				document.gamedata.toRow.value = "";
 				document.gamedata.toCol.value = "";
 
-				alert("Invalid move:\n" + errMsg);
+				if (typeof wcSuppressAlert === 'undefined' || !wcSuppressAlert)
+					alert("Invalid move:\n" + errMsg);
 			}
 		}
 	}

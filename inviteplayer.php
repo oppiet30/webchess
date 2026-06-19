@@ -2,7 +2,7 @@
 	// $Id: inviteplayer.php,v 1.5 2010/08/14 16:57:54 sandking Exp $
 
 /*
-    This file is part of WebChess. http://webchess.sourceforge.net
+    This file is part of WebChess. https://github.com/thorium/webchess
 	Copyright 2010 Jonathan Evraire, Rodrigo Flores
 
     WebChess is free software: you can redistribute it and/or modify
@@ -19,7 +19,12 @@
     along with WebChess.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-	session_start();
+	/* load settings (also makes the secure session + CSRF helpers available) */
+	if (!isset($_CONFIG)) {
+		require 'config.php';
+	}
+
+	secure_session_start();
 
 	/* neededfor fixOldPHPVersions() below */
 	require 'chessutils.php';
@@ -149,13 +154,11 @@
 						<?php
 							/* connect to the database */
 							require 'connectdb.php';
-							$tmpQuery="SELECT playerID, nick FROM " . $CFG_TABLE[players] . " WHERE playerID <> ".$_SESSION['playerID'];
-							$tmpPlayers = mysql_query($tmpQuery);
-							while($tmpPlayer = mysql_fetch_array($tmpPlayers, MYSQL_ASSOC))
+							$tmpPlayers = db_query("SELECT playerID, nick FROM " . $CFG_TABLE[players] . " WHERE playerID <> ?", [$_SESSION['playerID']]);
+							while($tmpPlayer = $tmpPlayers->fetch())
 							{
-								echo ('<option value="'.$tmpPlayer['playerID'].'"> '.$tmpPlayer['nick']."</option>\n");
+								echo ('<option value="'.h($tmpPlayer['playerID']).'"> '.h($tmpPlayer['nick'])."</option>\n");
 							}
-							mysql_close();
 						?>
 						</select>
 						<div class="inputlabel">Your Color</div>

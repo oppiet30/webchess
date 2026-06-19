@@ -2,7 +2,7 @@
 	// $Id: newuser.php,v 1.81 2013/12/07 20:00:00 gitjake Exp $
 
 /*
-    This file is part of WebChess. http://webchess.sourceforge.net
+    This file is part of WebChess. https://github.com/thorium/webchess
 	Copyright 2010 Jonathan Evraire, Rodrigo Flores
 
     WebChess is free software: you can redistribute it and/or modify
@@ -19,19 +19,18 @@
     along with WebChess.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-	session_start();
-
-	/* load settings */
+	/* load settings (also pulls in the security helpers) */
 	if (!isset($_CONFIG)) {
 		require 'config.php';
         include_once 'lang.php';
 	}
 
+	/* start a hardened session (needed for the CSRF token) */
+	secure_session_start();
+
 	if (!isset($_CHESSUTILS))
 		require 'chessutils.php';
 
-
-	fixOldPHPVersions();
 	if ($CFG_NEW_USERS_ALLOWED==false)
 	{
 		die(gettext("Not Authorized!"));
@@ -43,7 +42,9 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="stylesheet" href="userlogin.css" type="text/css" />
+<link rel="stylesheet" href="responsive.css" type="text/css" />
 <script type="text/javascript" src="javascript/cookies.js"></script>
 <title><?php echo APP_NAME . " :: " . gettext("Create New User"); ?></title>
 
@@ -79,21 +80,20 @@
 				<div class="form-block">
                                         <h1><?php echo gettext("Personal information");?></h1>
                                         <div class="inputlabel"><?php echo gettext("First Name");?></div>
-					<div><input name="txtFirstName" type="text" class="inputbox" value="<?php echo isset($_POST['txtFirstName'])?$_POST['txtFirstName']:''; ?>" /></div>
+					<div><input name="txtFirstName" type="text" class="inputbox" value="<?php echo h($_POST['txtFirstName'] ?? ''); ?>" /></div>
                                         <div class="inputlabel"><?php echo gettext("Last Name");?></div>
-					<div><input name="txtLastName" type="text" class="inputbox" value="<?php echo isset($_POST['txtLastName']) ? $_POST['txtLastName'] : ''; ?>" /></div>
+					<div><input name="txtLastName" type="text" class="inputbox" value="<?php echo h($_POST['txtLastName'] ?? ''); ?>" /></div>
                                         <div class="inputlabel"><?php echo gettext("Nick");?></div>
 					<div>
 						<input name="txtNick" type="text" class="inputbox" />
 						<?php
 							/* this var is set to true in mainmenu.php */
 							if (isset($tmpNewUser))
-								echo("<div class=\"warning\">Sorry, the nick you've chosen (".$_POST['txtNick'].") is already in use.  Please try another.</div>");
+								echo("<div class=\"warning\">Sorry, the nick you've chosen (".h($_POST['txtNick']).") is already in use.  Please try another.</div>");
 						?>
 					</div>
                                         <div class="inputlabel"><?php echo gettext("Password");?></div>
 					<div>
-						As the security is not very good, please don't use this password anywhere else!
 						<input name="pwdPassword" type="password" class="inputbox" /></div>
                                         <div class="inputlabel"><?php echo gettext("Password Confirmation");?></div>
 					<div><input name="pwdPassword2" type="password" class="inputbox" /></div>
@@ -110,14 +110,16 @@
 					</div>
                                         <div class="inputlabel"><?php echo gettext("Theme");?></div>
 					<div class="inputbox">
-                                                <div><input name="rdoTheme" type="radio" value="beholder" checked="checked" /> <a href="http://www.beholder.co.uk"><?php echo gettext("Beholder");?></a></div>
-                                                <div><input name="rdoTheme" type="radio" value="plain" /> <?php echo gettext("Plain");?></div>
+                                                <div><input name="rdoTheme" type="radio" value="master" /> <?php echo gettext("Master");?></div>
+                                                <div><input name="rdoTheme" type="radio" value="gnuchess_fancy" /> <?php echo gettext("GNU Chess Fancy");?></div>
+                                                <div><input name="rdoTheme" type="radio" value="gnuchess_simple" checked="checked" /> <?php echo gettext("GNU Chess Simple");?></div>
+                                                <div><input name="rdoTheme" type="radio" value="beholder" /> <a href="http://www.beholder.co.uk"><?php echo gettext("Beholder");?></a></div>
 					</div>
                                         <div class="inputlabel"><?php echo gettext("Auto-reload") . " (" . gettext("min:") . ($CFG_MINAUTORELOAD) . " " . gettext("secs") . ")";?></div>
 					<div><input type="text" class="inputbox" name="txtReload" value="<?php echo ($CFG_MINAUTORELOAD); ?>" /></div>
 					<?php if ($CFG_USEEMAILNOTIFICATION) { ?>
                                                         <div class="inputlabel"><?php echo gettext("Email notification");?></div>
-							<div><input type="text" class="inputbox" name="txtEmailNotification" value="<?php echo($_POST['txtEmailNotification']); ?>" /></div>
+							<div><input type="text" class="inputbox" name="txtEmailNotification" value="<?php echo h($_POST['txtEmailNotification'] ?? ''); ?>" /></div>
                                                         <div class="instruction"><?php echo gettext("Enter a valid email address if you would like to be notified when your opponent makes a move. Leave blank otherwise.");?></div>
 					<?php } ?>
 
@@ -125,6 +127,7 @@
                                         <input name="btnCancel" type="button" class="button" value="<?php echo gettext("Cancel");?>" onClick="window.open('index.php', '_self')" />
 
 					<input name="ToDo" value="NewUser" type="hidden" />
+					<?php echo csrf_field(); ?>
 				</div>
 			</form>
 		</div>

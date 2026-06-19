@@ -84,13 +84,34 @@ very worse stopping and starting the MySQL service.
   Hopefully by this point we've got a database filled with all the
 necessary tables used by WebChess along with a working username and
 password for WebChess to access them.  All that's left now is to give
-WebChess the info on the database and user we just created.  Fortunately,
-this is easy to do and all it requires is editing config.php in any text
-editor.  (Note: a word processor like MS Word is >> NOT << a text editor!)
-Specifically, we need to set the $CFG_USER, $CFG_PASSWORD and
-$CFG_DATABASE settings to our situation like this:
-        $CFG_USER = "WCuser";
+WebChess the info on the database and user we just created.
+
+  Database credentials are NO LONGER stored in config.php (which is committed
+to version control). Instead, provide them in one of two ways:
+
+  1. (Recommended) Environment variables, set in your web server / PHP-FPM
+     pool configuration:
+        WEBCHESS_DB_HOST      (default: localhost)
+        WEBCHESS_DB_USER      (default: WebChessUser)
+        WEBCHESS_DB_PASSWORD
+        WEBCHESS_DB_NAME      (default: WebChess_DB)
+
+  2. A local override file. Copy config.local.sample.php to config.local.php
+     (which is git-ignored, so your secrets stay out of the repository) and
+     fill in your values:
+        $CFG_SERVER   = "localhost";
+        $CFG_USER     = "WCuser";
         $CFG_PASSWORD = "WCpass";
         $CFG_DATABASE = "WebChess";
 
   And that's it!  You should be able to create a new user now!
+
+  SECURITY NOTES (modernized release):
+   - Requires PHP 8.1+ and the PDO MySQL driver (pdo_mysql).
+   - All database access uses PDO prepared statements (no SQL injection).
+   - Passwords are stored with password_hash()/bcrypt. Existing md5 password
+     hashes keep working and are transparently upgraded on the user's next
+     successful login, so no password resets are required when upgrading.
+     The players.password column is now varchar(255) to fit the new hashes.
+   - Sessions are hardened (HttpOnly/SameSite cookies, id regenerated on login)
+     and all state-changing forms are protected with CSRF tokens.

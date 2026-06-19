@@ -2,7 +2,7 @@
 // $Id: chessutils.php,v 1.12 2010/08/14 16:57:54 sandking Exp $
 
 /*
-    This file is part of WebChess. http://webchess.sourceforge.net
+    This file is part of WebChess. https://github.com/thorium/webchess
 	Copyright 2010 Jonathan Evraire, Rodrigo Flores
 
     WebChess is free software: you can redistribute it and/or modify
@@ -21,6 +21,33 @@
 
 	$_CHESSUTILS = true;
 	#require('chess.inc');
+
+	/* ---- access-control helpers ---- */
+
+	/* True if $playerID is one of the two players in $gameID. */
+	function isPlayerInGame($gameID, $playerID)
+	{
+		global $CFG_TABLE;
+
+		if (!is_numeric($gameID) || (int)$playerID <= 0)
+			return false;
+
+		$game = db_row("SELECT whitePlayer, blackPlayer FROM " . $CFG_TABLE[games] . " WHERE gameID = ?", [$gameID]);
+		if ($game === null)
+			return false;
+
+		return ($game['whitePlayer'] == $playerID) || ($game['blackPlayer'] == $playerID);
+	}
+
+	/* Aborts the request unless the logged-in player belongs to $gameID. */
+	function requirePlayerInGame($gameID)
+	{
+		if (!isPlayerInGame($gameID, $_SESSION['playerID'] ?? -1))
+		{
+			http_response_code(403);
+			die('Not authorized for this game.');
+		}
+	}
 
 	/* these are utility functions used by other functions */
 	function getPieceName($piece)
@@ -237,71 +264,26 @@
 		//$headers .= "To: ".$msgTo."\r\n";
 		$headers .= 'Reply-To: ' . APP_NAME . ' <'.$CFG_MAILADDRESS.">\r\n";
 
+		/* strip CR/LF from the recipient to prevent mail header injection */
+		$msgTo = str_replace(array("\r", "\n"), '', (string)$msgTo);
+
 		mail($msgTo, $mailsubject, $mailmsg, $headers);
 	}
 
-	/* returns true if current version of PHP is greater than vercheck */
-	/* donated to PHP page (http://www.php.net/manual/en/function.version-compare.php) */
-	/* by savetz@northcoast.com and is PHP < 4.1.0 safe */
+	/* returns true if the running PHP is at least $vercheck.
+	   Historically this guarded PHP < 4.1.0 workarounds; on any supported
+	   (PHP 8+) runtime it simply reflects version_compare(). Kept so existing
+	   call sites continue to work. */
 	function minimum_version( $vercheck ) {
-		$minver = explode(".", $vercheck);
-		$curver = explode(".", phpversion());
-		
-		if (($curver[0] < $minver[0])
-			|| (($curver[0] == $minver[0])
-				&& ($curver[1] < $minver[1]))
-			|| (($curver[0] == $minver[0])
-				&& ($curver[1] == $minver[1])
-				&& ($curver[2][0] < $minver[2][0])))
-			return false;
-		else
-			return true;
+		return version_compare(PHP_VERSION, $vercheck, '>=');
 	}
 
-	/* allow WebChess to be run on PHP systems < 4.1.0, using old http vars */
-	/* heavily based on php4-1-0_varfix.php by Tom Harrison (thetomharrison@hotmail.com) */
-	/* only doing the opposite: creating _SESSION, _GET and _POST based on */
-	/* their HTTP_*_VARS equivalent */
-	function createNewHttpVars($type)
-	{
-		global $HTTP_POST_VARS, $HTTP_GET_VARS, $HTTP_SESSION_VARS;
-
-		$temp = array();
-		switch(strtoupper($type))
-		{
-			case 'POST':   $temp2 = &$HTTP_POST_VARS;   break;
-			case 'GET':    $temp2 = &$HTTP_GET_VARS;    break;
-			case 'SESSION':    $temp2 = &$HTTP_SESSION_VARS;    break;
-			default: return 0;
-		}
-
-		while (list($varname, $varvalue) = each($temp2)) {
-			$temp[$varname] = $varvalue;
-		}
-		
-		return ($temp);
-	}
-	
+	/* No-op retained for backwards compatibility.
+	   The old HTTP_*_VARS arrays and session_register() were removed from PHP
+	   long ago; $_POST/$_GET/$_SESSION are superglobals everywhere now, so there
+	   is nothing left to fix up. */
 	function fixOldPHPVersions()
 	{
-		global $_fixOldPHPVersions;
-
-		if (isset($_fixOldPHPVersions))
-			return;
-		
-		if (!minimum_version("4.1.0"))
-		{
-			global $_POST, $_GET, $_SESSION;
-
-			$_POST = createNewHttpVars("POST");
-			$_GET = createNewHttpVars("GET");
-			//$_SESSION = createNewHttpVars("SESSION");
-			
-			if (!isset($HTTP_SESSION_VARS["_SESSION"]))
-				session_register("_SESSION");
-		}
-
-		$_fixOldPHPVersions = true;
 	}
 
 	// this function was taken from the PHP documentation
@@ -401,33 +383,28 @@
 		global $CFG_TABLE;
 		global $pWhite,$pWhiteF,$pWhiteL,$pBlack,$pBlackF,$pBlackL,$gStart,$MyColor,$isDraw;
 
-		$tmpGameQ = mysql_query("SELECT whitePlayer,blackPlayer,dateCreated,gameMessage FROM " . $CFG_TABLE[games] . " WHERE gameID = " . $GameID) or die(mysql_error());
-		$tmpGame = mysql_fetch_array($tmpGameQ, MYSQL_ASSOC);
-		
+		$tmpGame = db_row("SELECT whitePlayer,blackPlayer,dateCreated,gameMessage FROM " . $CFG_TABLE[games] . " WHERE gameID = ?", [$GameID]);
+
 		$gStart = $tmpGame['dateCreated'];
 		$isDraw="";
 		if($tmpGame['gameMessage']=="draw"){$isDraw=true;}else{$isDraw="";}
-		
-		$tmpBlackQ = mysql_query("SELECT nick,firstName,lastName FROM " . $CFG_TABLE[players] . " WHERE playerID = ".$tmpGame['blackPlayer']);
-                $xBlack = mysql_fetch_array($tmpBlackQ, MYSQL_ASSOC);
+
+		$xBlack = db_row("SELECT nick,firstName,lastName FROM " . $CFG_TABLE[players] . " WHERE playerID = ?", [$tmpGame['blackPlayer']]);
                 $pBlack = $xBlack['nick'];
 		$pBlackF = $xBlack['firstName'];
 		$pBlackL = $xBlack['lastName'];
-     
-	        $tmpWhiteQ = mysql_query("SELECT nick,firstName,lastName FROM " . $CFG_TABLE[players] . " WHERE playerID = ".$tmpGame['whitePlayer']);
-                $xWhite = mysql_fetch_array($tmpWhiteQ, MYSQL_ASSOC);
+
+                $xWhite = db_row("SELECT nick,firstName,lastName FROM " . $CFG_TABLE[players] . " WHERE playerID = ?", [$tmpGame['whitePlayer']]);
                 $pWhite = $xWhite['nick'];
 		$pWhiteF = $xWhite['firstName'];
 		$pWhiteL = $xWhite['lastName'];
 
                 if ($tmpGame['whitePlayer'] == $_SESSION['playerID'])
                 {
-		        $tmpOpponent = $tmpBlackQ;
 			$MyColor="white";
 		}
                 elseif ($tmpGame['blackPlayer'] == $_SESSION['playerID'])
 		{
-                        $tmpOpponent = $tmpWhiteQ;
 			$MyColor="black";
 		}
 		else

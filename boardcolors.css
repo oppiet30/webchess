@@ -1,0 +1,17 @@
+/*
+ * Board colour schemes for WebChess (local and online boards).
+ *
+ * A scheme is selected by adding a class to <body> (see javascript/boardprefs.js);
+ * it overrides the square background colours defined in chess.css. The default
+ * (no class) keeps the classic grey board.
+ */
+
+/* Brown (chess.com classic) */
+body.bc-brown .light_enabled, body.bc-brown .light_disabled { background-color: #f0d9b5; color: #8a7a5c; }
+body.bc-brown .dark_enabled,  body.bc-brown .dark_disabled  { background-color: #b58863; color: #efe2cf; }
+body.bc-brown .header_enabled, body.bc-brown .header_disabled { background-color: rgb(49, 46, 43); color: #e8e8e8; }
+
+/* Green (chess.com) */
+body.bc-green .light_enabled, body.bc-green .light_disabled { background-color: #eeeed2; color: #76814f; }
+body.bc-green .dark_enabled,  body.bc-green .dark_disabled  { background-color: #769656; color: #ecf0d6; }
+body.bc-green .header_enabled, body.bc-green .header_disabled { background-color: rgb(49, 46, 43); color: #e8e8e8; }

@@ -2,7 +2,7 @@
 	// $Id: sessioncheck.php,v 1.6 2010/08/15 00:29:04 sandking Exp $
 
 /*
-    This file is part of WebChess. http://webchess.sourceforge.net
+    This file is part of WebChess. https://github.com/thorium/webchess
 	Copyright 2010 Jonathan Evraire, Rodrigo Flores
 
     WebChess is free software: you can redistribute it and/or modify
@@ -28,7 +28,7 @@
 
 	if ($_SESSION['playerID'] != -1)
 	{
-		if (time() - $_SESSION['lastInputTime'] >= $CFG_SESSIONTIMEOUT)
+		if (time() - ($_SESSION['lastInputTime'] ?? 0) >= $CFG_SESSIONTIMEOUT)
 			$_SESSION['playerID'] = -1;
 		else if (!isset($_GET['autoreload']))
 			$_SESSION['lastInputTime'] = time();

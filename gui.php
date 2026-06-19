@@ -2,7 +2,7 @@
 // $Id: gui.php,v 1.14 2013/12/07 20:00:00 gitjake Exp $
 
 /*
-    This file is part of WebChess. http://webchess.sourceforge.net
+    This file is part of WebChess. https://github.com/thorium/webchess
 	Copyright 2010 Jonathan Evraire, Rodrigo Flores
 
     WebChess is free software: you can redistribute it and/or modify
@@ -25,10 +25,6 @@
 	{
 		global $board, $playersColor, $numMoves;
 		global $CFG_BOARDSQUARESIZE;
-
-		/* old PHP versions don't have _POST, _GET and _SESSION as auto_globals */
-		if (!minimum_version("4.1.0"))
-			global $_POST, $_GET, $_SESSION;
 
 		/* find out if it's the current player's turn */
 		if (( (($numMoves == -1) || (($numMoves % 2) == 1)) && ($playersColor == "white"))
@@ -61,15 +57,17 @@
 		echo ("var isPlayersTurn = '" . $isPlayersTurn . "';\n");
 		echo ("var perspective = '" . $perspective . "';\n");
 		echo ("var squareSize = " . $CFG_BOARDSQUARESIZE . ";\n");
+		/* Shrink the board to fit narrow / mobile viewports. The rendered board
+		   is roughly 9 squares wide (8 files plus the rank/file border columns),
+		   so cap squareSize to (viewport - margin) / 9. Never enlarge it. */
+		echo ("(function(){ var avail = (window.innerWidth || 1024) - 16;"
+			. " var fit = Math.floor(avail / 9);"
+			. " if (fit < squareSize) { squareSize = (fit < 24) ? 24 : fit; } })();\n");
 	}
 
 	function writeJSboard()
 	{
 		global $board, $numMoves;
-
-		/* old PHP versions don't have _POST, _GET and _SESSION as auto_globals */
-		if (!minimum_version("4.1.0"))
-			global $_POST, $_GET, $_SESSION;
 
 		/* write out constants */
 		echo ("var DEBUG = ".DEBUG.";\n");
@@ -197,10 +195,6 @@
 	{
 		global $numMoves;
 
-		/* old PHP versions don't have _POST, _GET and _SESSION as auto_globals */
-		if (!minimum_version("4.1.0"))
-			global $_POST, $_GET, $_SESSION;
-
 		/* based on player's preferences, display the history */
 		$moves  = array();	// Make sure that $moves is defined
 		switch($_SESSION['pref_history'])
@@ -248,7 +242,7 @@
 			echo("var whosMove = 'Opponent\'s Turn';\n");
 
 		echo("var checkMsg = '");
-		if (!$isCheckMate && ($history[$numMoves]['isInCheck'] == 1))
+		if (!$isCheckMate && $numMoves >= 0 && ($history[$numMoves]['isInCheck'] == 1))
 			echo($curColor." is currently in check!");
 		echo("';\n");
 		echo("var statusMessage = '".$statusMessage."';\n");
@@ -312,6 +306,7 @@
 	function writePGN()
 	{
 		require 'connectdb.php';
+		global $CFG_TABLE;
 		global $_SESSION, $history, $numMoves,$pWhite,$pWhiteF,$pWhiteL,$pBlack,$pBlackF,$pBlackL,$gStart;
 		global $simplemove,$isDraw,$move_turn,$move_PlyNumber;
 		$FEN="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -405,9 +400,7 @@
 			$result="1/2-1/2";
 		};
 
-		$tmpQuery = "SELECT gameMessage, messageFrom FROM " . $CFG_TABLE[games] . " WHERE gameID = ".$_SESSION['gameID'];
-		$tmpMessages = mysql_query($tmpQuery);
-		$tmpMessage = mysql_fetch_array($tmpMessages, MYSQL_ASSOC);
+		$tmpMessage = db_row("SELECT gameMessage, messageFrom FROM " . $CFG_TABLE[games] . " WHERE gameID = ?", [$_SESSION['gameID']]);
 
 		if ($tmpMessage['gameMessage'] == "playerResigned")
 		{

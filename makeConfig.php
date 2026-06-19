@@ -5,7 +5,7 @@
 // $Id: makeConfig.php,v 1.11 2013/12/07 20:00:00 gitjake Exp $
 
 /*
-    This file is part of WebChess. http://webchess.sourceforge.net
+    This file is part of WebChess. https://github.com/thorium/webchess
 	Copyright 2010 Jonathan Evraire, Rodrigo Flores, rigao
 
     WebChess is free software: you can redistribute it and/or modify
@@ -22,6 +22,15 @@
     along with WebChess.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+/* Safety guard: like install.php this can create a database user and emits a
+ * config file, so it must not be reachable by default on a deployed site.
+ * Enable explicitly only during installation, then remove the installer
+ * scripts from the web root. */
+if (getenv('WEBCHESS_ENABLE_INSTALLER') !== '1') {
+	http_response_code(403);
+	exit('The WebChess installer is disabled. Set WEBCHESS_ENABLE_INSTALLER=1 to enable it during installation, then remove install.php and makeConfig.php from your web root.');
+}
+
 //This file is called by install.php (case 3 of the switch, before it ends the installation
 //procedure. It has two functions: first, to create a new user if told so. Second,
 //to make the config.php file and put it for download.
@@ -30,16 +39,33 @@
 //Normally it would be expected for this file to be located in install.php
 //but coding the installer has yeld to the conclusion that it is easier to put it
 //right here.
-function createUser($new_user,$new_password,$user,$password,$server,$DBname){
-   $dbh=mysql_connect ($server, $user, $password)
-           or die ('WebChess cannot connect to the database.
-              Please check the database settings you provided.<br>');
-   mysql_select_db ($DBname);
+/* Identifiers (database/user names) cannot be passed as bound parameters, so
+ * they are validated against a strict whitelist before being interpolated. */
+function makeConfigValidIdentifier($name) {
+   return is_string($name) && preg_match('/^[A-Za-z0-9_]+$/', $name) === 1;
+}
 
-   $query="GRANT SELECT, INSERT, UPDATE, DELETE ON ".$DBname.".* TO ".$new_user." IDENTIFIED BY '".$new_password."';";
-   $result= mysql_query($query);
-   mysql_query("quit");
-   return $result;
+function createUser($new_user,$new_password,$user,$password,$server,$DBname){
+   /* $DBname and $new_user are SQL identifiers and cannot be bound as
+      parameters, so they are strictly whitelisted before interpolation. The
+      password in IDENTIFIED BY likewise cannot be a placeholder, so it is
+      escaped with PDO::quote(). */
+   if (!makeConfigValidIdentifier($DBname) || !makeConfigValidIdentifier($new_user)) {
+      return false;
+   }
+   try {
+      $dsn = 'mysql:host=' . $server . ';dbname=' . $DBname . ';charset=utf8mb4';
+      $pdo = new PDO($dsn, $user, $password, [
+         PDO::ATTR_ERRMODE          => PDO::ERRMODE_EXCEPTION,
+         PDO::ATTR_EMULATE_PREPARES => false,
+      ]);
+      $quotedPassword = $pdo->quote($new_password);
+      $query = "GRANT SELECT, INSERT, UPDATE, DELETE ON " . $DBname . ".* TO " . $new_user . " IDENTIFIED BY " . $quotedPassword;
+      $pdo->exec($query);
+   } catch (PDOException $e) {
+      return false;
+   }
+   return true;
 }
 
 /* debug flag */
@@ -129,7 +155,7 @@ echo "\$CFG_BOARDSQUARESIZE = ".$_POST['size'].";\n";
 
 /* Application constants */
 define('APP_NAME', 'WebChess'); // The name of the app that is shown in the title
-define('APP_VERSION', '1.0.3rc'); // The version of the app
+define('APP_VERSION', '1.0.4'); // The version of the app
 
 /* I18N constants */
 define('I18N_GETTEXT_SUPPORT', false); // enable gettext for fetching translations
@@ -153,7 +179,9 @@ $CFG_TABLE[pieces] = "pieces";
 $CFG_TABLE[players] = "players";
 $CFG_TABLE[preferences] = "preferences";
 
-<?php 
+<?php
 echo "\$CFG_IMAGE_EXT = '".$_POST['imageExtension']."';\n";
+echo "\n/* shared security helpers (escaping, CSRF, hardened sessions, password hashing) */\n";
+echo "require_once __DIR__ . '/security.php';\n";
 echo "?>";
 ?>

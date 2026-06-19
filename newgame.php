@@ -2,7 +2,7 @@
 	// $Id: newgame.php,v 1.5 2010/08/14 16:57:54 sandking Exp $
 
 /*
-    This file is part of WebChess. http://webchess.sourceforge.net
+    This file is part of WebChess. https://github.com/thorium/webchess
 	Copyright 2010 Jonathan Evraire, Rodrigo Flores
 
     WebChess is free software: you can redistribute it and/or modify
@@ -67,12 +67,8 @@
 		/* clear history */
 		global $numMoves;
 
-		/* old PHP versions don't have _POST, _GET and _SESSION as auto_globals */
-		if (!minimum_version("4.1.0"))
-			global $_POST, $_GET, $_SESSION;
-
 		$numMoves = -1;
-		mysql_query("DELETE FROM " . $CFG_TABLE[history] . " WHERE gameID = ".$_SESSION['gameID']);
+		db_query("DELETE FROM " . $CFG_TABLE[history] . " WHERE gameID = ?", [$_SESSION['gameID']]);
 
 		initBoard();
 	}

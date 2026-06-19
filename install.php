@@ -2,7 +2,7 @@
 
 // exit('halt'); // script not needed anymore after install and configuration are complete
 /*
-    This file is part of WebChess. http://webchess.sourceforge.net
+    This file is part of WebChess. https://github.com/thorium/webchess
 	Copyright 2010 Jonathan Evraire, Rodrigo Flores, rigao
 
     WebChess is free software: you can redistribute it and/or modify
@@ -19,16 +19,66 @@
     along with WebChess.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+/* The installer runs before config.php exists, so it cannot be auto-loaded via
+ * config.php. Pull in the HTML-escaping helper h() directly. security.php has
+ * no dependencies of its own. */
+require_once __DIR__ . '/security.php';
+
+/* Safety guard: the installer can create and alter databases/tables, so it must
+ * not be reachable by default on a deployed site. Enable it explicitly only
+ * while installing (set WEBCHESS_ENABLE_INSTALLER=1), then remove install.php
+ * and makeConfig.php from the web root. */
+if (getenv('WEBCHESS_ENABLE_INSTALLER') !== '1') {
+	http_response_code(403);
+	exit('The WebChess installer is disabled. Set WEBCHESS_ENABLE_INSTALLER=1 to enable it during installation, then remove install.php and makeConfig.php from your web root.');
+}
+
+/*
+ * The PDO helper db() in db.php connects to a *specific* database, which does
+ * not exist yet while the installer is running. So the installer maintains its
+ * own PDO connections here:
+ *   - installServerPdo()   connects at the server level (no dbname selected) so
+ *                          it can run CREATE DATABASE.
+ *   - installDbPdo()       connects with a database selected so it can create
+ *                          the tables inside it.
+ * Both use ERRMODE_EXCEPTION. Admin credentials supplied during install are
+ * distinct from the limited app credentials in config.php, so we never route
+ * the installer through db.php.
+ */
+
+/* Identifiers (database/user names) cannot be passed as bound parameters, so
+ * they are validated against a strict whitelist before being interpolated. */
+function installValidIdentifier($name) {
+	return is_string($name) && preg_match('/^[A-Za-z0-9_]+$/', $name) === 1;
+}
+
+function installServerPdo($server, $user, $password) {
+	$dsn = 'mysql:host=' . $server . ';charset=utf8mb4';
+	return new PDO($dsn, $user, $password, [
+		PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+		PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_NUM,
+		PDO::ATTR_EMULATE_PREPARES   => false,
+	]);
+}
+
+function installDbPdo($server, $user, $password, $DBname) {
+	$dsn = 'mysql:host=' . $server . ';dbname=' . $DBname . ';charset=utf8mb4';
+	return new PDO($dsn, $user, $password, [
+		PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+		PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_NUM,
+		PDO::ATTR_EMULATE_PREPARES   => false,
+	]);
+}
+
 /*******************************************************************************
  *                                                                             *
  *        This block of functions creates the table-system of WebChess.        *
  *                                                                             *
  ******************************************************************************/
 //ToDo: The probing algoritm must check inside tables to see if it has all its fields.
-function tableExists($tablename) {
-	$SQLQuery = "SHOW TABLES";
-	$Result = mysql_query($SQLQuery);
-	while($Row=mysql_fetch_row($Result)){
+function tableExists($pdo, $tablename) {
+	$stmt = $pdo->query("SHOW TABLES");
+	while($Row=$stmt->fetch()){
 		if($Row[0]==$tablename){
 			return true;
 		}
@@ -36,7 +86,7 @@ function tableExists($tablename) {
 	return false;
 }
 
-function createTableGames(){
+function createTableGames($pdo){
 	$SQLCreateTableGames = "CREATE TABLE games (
 		gameID SMALLINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 		whitePlayer MEDIUMINT NOT NULL,
@@ -46,11 +96,11 @@ function createTableGames(){
 		dateCreated DATETIME NOT NULL,
 		lastMove DATETIME NOT NULL
 	);";
-	$Result = mysql_query($SQLCreateTableGames);
-        return $Result;
+	$pdo->exec($SQLCreateTableGames);
+        return true;
 }
 
-function createTableHistory(){
+function createTableHistory($pdo){
 	$SQLCreateTableHistory = "CREATE TABLE history (
 		timeOfMove DATETIME NOT NULL,
 		gameID SMALLINT NOT NULL,
@@ -66,11 +116,11 @@ function createTableHistory(){
 		PRIMARY KEY(timeOfMove, gameID),
 		INDEX idx_gameID (gameID)
 	);";
-	$Result = mysql_query($SQLCreateTableHistory);
-        return $Result;
+	$pdo->exec($SQLCreateTableHistory);
+        return true;
 }
 
-function createTableMessages() {
+function createTableMessages($pdo) {
 	$SQLCreateTableMessages = "CREATE TABLE messages (
 		msgID INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 		gameID SMALLINT NOT NULL,
@@ -78,11 +128,11 @@ function createTableMessages() {
 		msgStatus ENUM('request', 'approved', 'denied') NOT NULL,
 		destination ENUM('black', 'white') NOT NULL
 	);";
-	$Result = mysql_query($SQLCreateTableMessages);
-        return $Result;
+	$pdo->exec($SQLCreateTableMessages);
+        return true;
 }
 
-function createTablePieces(){
+function createTablePieces($pdo){
 	$SQLCreateTablePieces = "CREATE TABLE pieces (
 		gameID SMALLINT NOT NULL,
 		color ENUM('white','black') NOT NULL,
@@ -91,54 +141,53 @@ function createTablePieces(){
 		row SMALLINT NOT NULL,
 		INDEX idx_gameID (gameID)
 	);";
-	$Result = mysql_query($SQLCreateTablePieces);
-        return $Result;
+	$pdo->exec($SQLCreateTablePieces);
+        return true;
 }
 
-function createTablePlayers(){
+function createTablePlayers($pdo){
 	$SQLCreateTablePlayers = "CREATE TABLE players (
 		playerID INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-		password CHAR(32) NOT NULL,
+		password varchar(255) NOT NULL,
 		firstName varchar(64) NOT NULL,
 		lastName varchar(64) NOT NULL,
 		nick varchar(64) NOT NULL UNIQUE,
-		userlevel tinyint(1) NOT NULL DEFAULT 1,
+		userlevel varchar(20) NOT NULL DEFAULT '1',
 		lastAccess DATETIME
 	);";
-	$Result = mysql_query($SQLCreateTablePlayers);
-        return $Result;
+	$pdo->exec($SQLCreateTablePlayers);
+        return true;
 }
 
-function tablePlayersHasLastAccessField() {
+function tablePlayersHasLastAccessField($pdo) {
 	$SQLUpdateTablePlayers = "EXPLAIN players;";
-	$Result = mysql_query($SQLUpdateTablePlayers);
-	while($Row=mysql_fetch_row($Result)){
+	$stmt = $pdo->query($SQLUpdateTablePlayers);
+	while($Row=$stmt->fetch()){
 		if($Row[0]=="lastAccess"){
 			return true;
 		}
 	}
 	return false;
-        return $Result;
 }
 
-function addLastAccessFieldToPlayersTable() {
-	$SQLUpdateTablePlayers = "ALTER TABLE 'players' ADD 'lastAccess' DATETIME;";
-	$Result = mysql_query($SQLUpdateTablePlayers);
-        return $Result;
+function addLastAccessFieldToPlayersTable($pdo) {
+	$SQLUpdateTablePlayers = "ALTER TABLE players ADD lastAccess DATETIME;";
+	$pdo->exec($SQLUpdateTablePlayers);
+        return true;
 }
 
-function createTablePreferences() {
+function createTablePreferences($pdo) {
 	$SQLCreateTablePreferences = "CREATE TABLE preferences (
 		playerID INT NOT NULL,
 		preference CHAR(20) NOT NULL,
 		value CHAR(50) NULL,
 		PRIMARY KEY(playerID, preference)
 	);";
-	$Result = mysql_query($SQLCreateTablePreferences);
-        return $Result;
+	$pdo->exec($SQLCreateTablePreferences);
+        return true;
 }
 
-function createTableCommunication() {
+function createTableCommunication($pdo) {
 	$SQLCreateTableCommunication = "CREATE TABLE communication (
 	  commID smallint(6) NOT NULL auto_increment,
 	  gameID smallint(6) default NULL,
@@ -152,19 +201,19 @@ function createTableCommunication() {
 	  commType smallint(6) default '0',
 	  PRIMARY KEY  (commID)
 	);";
-	$Result = mysql_query($SQLCreateTableCommunication);
-        return $Result;
+	$pdo->exec($SQLCreateTableCommunication);
+        return true;
 }
 
-function insertSampleFieldIntoCommunications() {
+function insertSampleFieldIntoCommunications($pdo) {
 	$SQLInsertIntoCommunication = "INSERT INTO communication
 	(gameID,fromID,toID,title,text,postDate,expireDate,ack,commType)
 	VALUES (NULL,NULL,NULL,'Database Upgrade tSuccessfull','If you see this message
 	then the communication table was created successfully... this will allow players
 	and admins to communicate with each other by posting
 	messages.',NOW(),'0000-00-00 00:00:00','0','0');";
-	$Result = mysql_query($SQLInsertIntoCommunication);
-        return $Result;
+	$pdo->exec($SQLInsertIntoCommunication);
+        return true;
 }
 
 function writeLogFile($message) {
@@ -203,111 +252,97 @@ function showProbingMessage($message){
 //user does not have direct access to the MySQL server, as will happen in most of the
 //free web hosting providers.
 function createDB($user,$password,$server,$DBname){
-   $dbh=mysql_connect ($server, $user, $password)
-           or die ('WebChess cannot connect to the database.
-              Please check the database settings you provided.<br>');
-   $query="create database ".$DBname;
-   $result=mysql_query($query);
-   mysql_query("quit");
-   return $result;
+   /* $DBname is an identifier and cannot be bound as a parameter, so it is
+      strictly whitelisted before being interpolated into the DDL statement. */
+   if (!installValidIdentifier($DBname)) {
+      echo "Invalid database name. Only letters, digits and underscores are allowed.<br>";
+      return false;
+   }
+   try {
+      $pdo = installServerPdo($server, $user, $password);
+      $pdo->exec("CREATE DATABASE " . $DBname);
+   } catch (PDOException $e) {
+      return false;
+   }
+   return true;
 }
 
 //This function creates the tables within the database.
 //ToDo: be able to write the install.log file.
 //Until this is done, the $logMsg .= ... lines are commented.
 function createTables($user,$password,$server,$DBname){
-   $dbh=mysql_connect ($server, $user, $password)
-           or die ('WebChess cannot connect to the database.
-              Please check the database settings you provided.<br>');
-   mysql_select_db ($DBname);
+   if (!installValidIdentifier($DBname)) {
+      echo "Invalid database name. Only letters, digits and underscores are allowed.<br>";
+      return;
+   }
+   try {
+      $pdo = installDbPdo($server, $user, $password, $DBname);
+   } catch (PDOException $e) {
+      echo 'WebChess cannot connect to the database.
+              Please check the database settings you provided.<br>';
+      return;
+   }
 
-   //$logMsg .= "Probing for table games..\n";
    echo "Probing for table games..<br>";
-   if(!tableExists("games")) {
-   	//$logMsg .= "Creating table games..\n";
+   if(!tableExists($pdo, "games")) {
    	echo "Creating table games..<br>";
-	$result=createTableGames();
+	$result=createTableGames($pdo);
         showMessage($result);
    }  else {
       showProbingMessage(true);
    }
-   //$logMsg .= "Probing for table history..\n";
    echo "Probing for table history..<br>";
-   if(!tableExists("history")) {
-	//$logMsg .= "Creating table history..\n";
+   if(!tableExists($pdo, "history")) {
    	echo "Creating table history..<br>";
-	$result=createTableHistory();
+	$result=createTableHistory($pdo);
         showMessage($result);
    }  else showProbingMessage(true);
-   //$logMsg .= "Probing for table messages..\n";
    echo "Probing for table messages..<br>";
-   if(!tableExists("messages")) {
-	//$logMsg .= "Creating table messages..\n";
+   if(!tableExists($pdo, "messages")) {
    	echo "Creating table messages..<br>";
-	$result=createTableMessages();
+	$result=createTableMessages($pdo);
         showMessage($result);
    }  else showProbingMessage(true);
-   //$logMsg .= "Probing for table pieces..\n";
    echo "Probing for table pieces..<br>";
-   if(!tableExists("pieces")) {
-	//$logMsg .= "Creating table pieces..\n";
+   if(!tableExists($pdo, "pieces")) {
    	echo "Creating table pieces..<br>";
-	$result=createTablePieces();
+	$result=createTablePieces($pdo);
         showMessage($result);
    } else showProbingMessage(true);
    // ToDo: consider checking for fields named "pCol" and "pRow" in "pieces" table (n8chessnet) or updating to pCol and pRow
-   //$logMsg .= "Probing for table players..\n";
    echo "Probing for table players..<br>";
-   if(!tableExists("players")) {
-	//$logMsg .= "Creating table players..\n";
+   if(!tableExists($pdo, "players")) {
    	echo "Creating table players..<br>";
-	$result=createTablePlayers();
+	$result=createTablePlayers($pdo);
         showMessage($result);
    } else {
-	//$logMsg .= "Table players exists. Checking if table players has field lastAccess..\n";
         echo "Table players exists. Checking if table players has the lastAccess field..<br>";
 	// Check if field "lastAccess" exists..
-	if(!tablePlayersHasLastAccessField()) {
+	if(!tablePlayersHasLastAccessField($pdo)) {
 		// if false: update by calling addLastAccessFieldToPlayersTable()
-		//$logMsg .= "Adding lastAccess field..\n";
                 echo "Adding lastAccess field..<br>";
-		addLastAccessFieldToPlayersTable();
+		addLastAccessFieldToPlayersTable($pdo);
 	} else echo "Field lastAccess exists. Nothing done.<br>";
    }
-   //$logMsg .= "Probing for table preferences..\n";
    echo "Probing for table preferences..<br>";
-   if(!tableExists("preferences")) {
-	//$logMsg .= "Creating table preferences..\n";
+   if(!tableExists($pdo, "preferences")) {
    	echo "Creating table preferences..<br>";
-	$result=createTablePreferences();
+	$result=createTablePreferences($pdo);
         showMessage($result);
    } else showProbingMessage(true);
-   //$logMsg .= "Probing for table communication..\n";
    echo "Probing for table communication..<br>";
-   if(!tableExists("communication")) {
-	//$logMsg .= "Creating table communication..\n";
+   if(!tableExists($pdo, "communication")) {
    	echo "Creating table communication..<br>";
-	$result=createTableCommunication();
+	$result=createTableCommunication($pdo);
         showMessage($result);
-	//$logMsg .= "Inserting message to communication table..\n";
    	echo "Inserting message to communication table....<br>";
-	$result=insertSampleFieldIntoCommunications();
+	$result=insertSampleFieldIntoCommunications($pdo);
         if ($result==1){
            echo "message inserted correctly.";
         } else echo "<b>ERROR</b>! The field message was not inserted correctly!";
    } else {
       showProbingMessage(true);
    }
-
-   //ToDo: Make logfile work properly.
-   //Without the proper permision, php won't be able to write any file.
-   //In many free web hosting providers it won't be possible to allow proper
-   //write permision, so it is not advisable to use this. It is needed a workaround.
-   //Following code comented until this workaround is found.
-   //echo ereg_replace("\n","<br />",$logMsg);
-   //writeLogFile($logMsg);
-
-   mysql_query("quit");
 }
 
 ################################################################################
@@ -419,7 +454,7 @@ switch($postConfirm){
                   tables within the database.</h2>
 
       <p>If the last step was successful, you should now have a database named
-          '<?php echo $_POST['DBname']; ?>' which WebChess will use to store its
+          '<?php echo h($_POST['DBname']); ?>' which WebChess will use to store its
           data. In order to do so, you must create the database tables.</p>
 
       <p>Enter a user with create-table rights. You may re-use the same one as
@@ -428,18 +463,18 @@ switch($postConfirm){
       <?php //This form will be sent to case 3, to end step 2 and to start step 3. ?>
          <form action='install.php' method='POST' name='step2'><table>
             <tr><td colspan="2">
-                  <input type="hidden" name="server" value="<?php echo $_POST['server']; ?>"/></td></tr>
+                  <input type="hidden" name="server" value="<?php echo h($_POST['server']); ?>"/></td></tr>
             <tr><td>User:</td><td><input type="text" name="user"/></td></tr>
             <tr><td>Password:</td><td><input type="password" name="pass"/></td></tr>
             <tr><td colspan="2">
-                  <input type="hidden" name="DBname" value="<?php echo $_POST['DBname']; ?>"/></td></tr>
+                  <input type="hidden" name="DBname" value="<?php echo h($_POST['DBname']); ?>"/></td></tr>
             <tr><td colspan="2">
 		<?php if ($_POST['user'] != '') { ?>
                   <input type="checkbox" name="reuse" value="true"/>Use the same
           user as in step 1.
 		<?php } ?>
-                  <input type="hidden" name="user_last" value="<?php echo $_POST['user']; ?>"/>
-                  <input type="hidden" name="pass_last" value="<?php echo $_POST['pass']; ?>"/>
+                  <input type="hidden" name="user_last" value="<?php echo h($_POST['user']); ?>"/>
+                  <input type="hidden" name="pass_last" value="<?php echo h($_POST['pass']); ?>"/>
                </td></tr>
             <tr><td colspan="2"><input type='hidden' name='confirm' value='3' />
             <input type='submit' value='Continue' /></td></tr>
@@ -501,16 +536,16 @@ switch($postConfirm){
          ?>
          <form action='makeConfig.php' method='POST' name='generateConfigForm' target="_blank"><table>
             <tr><td colspan="2"><b><u>Database Settings:</u></b>
-                  <input type="hidden" name="server" value="<?php echo $_POST['server']; ?>"/></td></tr>
+                  <input type="hidden" name="server" value="<?php echo h($_POST['server']); ?>"/></td></tr>
             <tr><td>User:</td><td><input type="text" name="user"/></td></tr>
             <tr><td>Password:</td><td><input type="password" name="pass"/></td></tr>
             <tr><td colspan="2">
-                  <input type="hidden" name="DBname" value="<?php echo $_POST['DBname']; ?>"/></td></tr>
+                  <input type="hidden" name="DBname" value="<?php echo h($_POST['DBname']); ?>"/></td></tr>
             <tr><td colspan="2">
                   <input type="checkbox" name="reuse" value="true"/>Use the same
                       user as in step 2.
-                  <input type="hidden" name="user_last" value="<?php echo $user; ?>"/>
-                  <input type="hidden" name="pass_last" value="<?php echo $pass; ?>"/>
+                  <input type="hidden" name="user_last" value="<?php echo h($user); ?>"/>
+                  <input type="hidden" name="pass_last" value="<?php echo h($pass); ?>"/>
                </td></tr>
             <tr><td colspan="2"><b><u>Server Settings:</u></b></td></tr>
             <tr><td>Time before session expires (seconds):</td><td><input type="text" name="timeout"/> (ex: 900)</td></tr>
@@ -518,7 +553,7 @@ switch($postConfirm){
             <tr><td>Minimum time interval for auto-reload (seconds):</td><td><input type="text" name="autoreload"/> (ex: 5)</td></tr>
             <tr><td>Use e-mail notification:</td><td><input type="checkbox" name="mail_not" value="1"/></td></tr>
             <tr><td>E-mail adress:</td><td><input type="text" name="mail_adr"/> (ex: WebChess@example.com)</td></tr>
-            <tr><td>Main Page adress:</td><td><input type="text" name="url"/> (ex: http://webchess.sourceforge.net)</td></tr>
+            <tr><td>Main Page adress:</td><td><input type="text" name="url"/> (ex: https://github.com/thorium/webchess)</td></tr>
             <tr><td>Maximum active users:</td><td><input type="text" name="maxUsers"/> (ex: 50)</td></tr>
             <tr><td>Maximum active games:</td><td><input type="text" name="maxGames"/> (ex: 50)</td></tr>
             <tr><td>Nick changes allowed:</td><td><input type="checkbox" name="changeNick" value="1"/></td></tr>

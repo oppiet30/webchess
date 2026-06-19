@@ -5,7 +5,7 @@
 ?>
 	<div class="footer" align="center">
 		<p><?php
-			$url = '<a href="http://webchess.sourceforge.net/">' . APP_NAME . ' ' . gettext('Version') . ' ' . APP_VERSION .'</a>'; 
+			$url = '<a href="https://github.com/thorium/webchess">' . APP_NAME . ' ' . gettext('Version') . ' ' . APP_VERSION .'</a>'; 
 			printf(gettext('%s is Free Software released under the GNU General Public License (GPL).'), $url); 
 		?></p>
 	</div>

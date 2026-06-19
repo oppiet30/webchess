@@ -1,7 +1,7 @@
 // $Id: commands.js,v 1.4 2010/08/14 16:57:54 sandking Exp $
 
 /*
-    This file is part of WebChess. http://webchess.sourceforge.net
+    This file is part of WebChess. https://github.com/thorium/webchess
 	Copyright 2010 Jonathan Evraire, Rodrigo Flores, Dadi Jonsson
 
     WebChess is free software: you can redistribute it and/or modify

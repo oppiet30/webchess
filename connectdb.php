@@ -2,7 +2,7 @@
 	// $Id: connectdb.php,v 1.4 2010/08/14 16:57:54 sandking Exp $
 
 /*
-    This file is part of WebChess. http://webchess.sourceforge.net
+    This file is part of WebChess. https://github.com/thorium/webchess
 	Copyright 2010 Jonathan Evraire, Rodrigo Flores
 
     WebChess is free software: you can redistribute it and/or modify
@@ -19,13 +19,11 @@
     along with WebChess.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-	/* load settings */
-	if (!isset($_CONFIG))
-		require 'config.php';
-
-	/* connect to database */
-	$dbh=mysql_connect ($CFG_SERVER, $CFG_USER, $CFG_PASSWORD)
-		or die (APP_NAME . ' cannot connect to the database.  Please check the database settings in your config.');
-
-	mysql_select_db ($CFG_DATABASE);
+	/*
+	 * Backwards-compatible shim. The mysql_* extension was removed in PHP 7;
+	 * database access now goes through the PDO-based helpers in db.php. Including
+	 * this file keeps the historical `require 'connectdb.php'` call sites working
+	 * while routing everything through the modern layer.
+	 */
+	require_once __DIR__ . '/db.php';
 ?>

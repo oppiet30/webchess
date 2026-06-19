@@ -1,9 +1,8 @@
-
-	<?php
+<?php
 	// $Id: index.php,v 1.10 2010/08/18 09:37:26 sandking Exp $
 
 /*
-    This file is part of WebChess. http://webchess.sourceforge.net
+    This file is part of WebChess. https://github.com/thorium/webchess
 	Copyright 2010 Jonathan Evraire, Rodrigo Flores
 
     WebChess is free software: you can redistribute it and/or modify
@@ -20,26 +19,28 @@
     along with WebChess.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-	// If the user is already logged in then go to main menu
-	// Note that a logout sets the Session playerID to -1
-	session_start();
-	if (isset($_SESSION['playerID']) && $_SESSION['playerID'] > 0) {
-		header( "Location: {$CFG_MAINPAGE}/mainmenu.php", true, 303 /*redirect*/ ) ;
-	}
-	
-	
-	/* load settings */
+	/* load settings first (also pulls in the security helpers) */
 	if (!isset($_CONFIG)) {
 		require 'config.php';
         include_once 'lang.php';
+	}
+
+	// If the user is already logged in then go to main menu
+	// Note that a logout sets the Session playerID to -1
+	secure_session_start();
+	if (isset($_SESSION['playerID']) && $_SESSION['playerID'] > 0) {
+		header('Location: mainmenu.php', true, 303 /*redirect*/);
+		exit();
 	}
 	?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1" />
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="stylesheet" href="userlogin.css" type="text/css" />
+<link rel="stylesheet" href="responsive.css" type="text/css" />
 <script type="text/javascript" src="javascript/cookies.js"></script>
 <title><?php echo APP_NAME; ?> :: <?php echo gettext("Login");?></title>
 <script language="javascript" type="text/javascript">
@@ -49,8 +50,8 @@ function storeLogin()
 {
 	if(document.loginForm.remember.checked)
 	{
+		/* Only remember the username. Never persist the password client-side. */
 		visitordata.nick = document.loginForm.txtNick.value;
-		visitordata.pwd = document.loginForm.pwdPassword.value;
 		visitordata.store();
 	}
 }
@@ -70,8 +71,6 @@ window.onload = function()
 	{
 		if(visitordata.nick)
 			document.loginForm.txtNick.value = visitordata.nick;
-		if(visitordata.pwd)
-			document.loginForm.pwdPassword.value = visitordata.pwd;
 		document.loginForm.remember.checked = true;
 	}
 	document.loginForm.txtNick.focus();
@@ -99,6 +98,7 @@ window.onload = function()
 					</label>
 					</div>
 					<input name="ToDo" value="Login" type="hidden" />
+					<?php echo csrf_field(); ?>
 					<div align="left">
 						<input type="submit" name="login" class="button" value="<?php echo gettext("Login");?>" />
 				<?php
@@ -117,6 +117,8 @@ window.onload = function()
 			<div class="ctr"><img src="images/webchess.jpg" width="65" height="92" alt="security" /></div>
                         <p><?php echo gettext("Welcome to") . " " . APP_NAME;?>!</p>
                         <p><?php echo gettext("Use a valid username and password to gain access.");?></p>
+                        <p><?php echo gettext("Or play right now, no account needed:");?><br />
+                            <input type="button" class="button" value="<?php echo gettext("2-player local game");?>" onClick="window.location='local.php'" /></p>
     	</div>
 		<div class="clr"></div>
 	</div>

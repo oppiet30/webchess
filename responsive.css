@@ -1,0 +1,134 @@
+/*
+ * Mobile-friendly overrides for WebChess (added 2026).
+ *
+ * Loaded AFTER each page's own stylesheet so these rules win. Everything that
+ * could affect the desktop layout is confined to the max-width media queries,
+ * so the classic desktop appearance is unchanged on wide screens.
+ */
+
+/* Never let a page force the whole viewport to scroll sideways. */
+html, body {
+	max-width: 100%;
+	overflow-x: hidden;
+}
+
+/* Make decorative/content images flexible (the chess board sizes itself in JS
+ * and is excluded below). */
+.login-text img,
+#header img {
+	max-width: 100%;
+	height: auto;
+}
+
+/* ----- Phone / small-tablet layout (<= 760px) ----- */
+@media (max-width: 760px) {
+
+	/* chess.css sets `html { min-width: 742px }`, which forces the whole page
+	   wider than any phone and defeats the rules below. Release it. */
+	html, body {
+		min-width: 0 !important;
+	}
+
+	/* chess.css uses a fixed 742px wrapper with floated, fixed-width columns.
+	   Make the whole thing a single fluid column. */
+	div#wrapper,
+	div#boardsection,
+	html > body div#boardsection,
+	div#content,
+	div#rightcolumn,
+	div#navcontainer {
+		float: none !important;
+		width: auto !important;
+		min-width: 0 !important;
+		margin-left: 8px !important;
+		margin-right: 8px !important;
+	}
+
+	/* mainmenu.css positions the nav as an absolute left sidebar and offsets the
+	   content 180px to clear it. On a phone, put the nav back in normal flow
+	   (stacked above the content) and drop the offset/border. */
+	div#navcontainer {
+		position: static !important;
+		left: auto !important;
+		top: auto !important;
+		margin-bottom: 10px !important;
+	}
+
+	div#rightcolumn {
+		border-left: 0 !important;
+		padding-left: 0 !important;
+	}
+
+	/* in-game control rows: wrap buttons and keep the info bar inside the
+	   viewport instead of overflowing to the right */
+	#gamebuttons,
+	form[name="gamemenu"] {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 6px;
+	}
+
+	#moveinfo {
+		box-sizing: border-box;
+		width: 100% !important;
+	}
+
+	/* mainmenu.css / userlogin.css two-column "preferences" and "login" panels:
+	   stack them instead of placing the form and the help text side by side. */
+	.preferences,
+	.preferences-form,
+	.login,
+	.login-form,
+	.login-text,
+	.viewmessage-form,
+	.message-block {
+		float: none !important;
+		width: auto !important;
+		margin-left: 0 !important;
+		margin-right: 0 !important;
+	}
+
+	/* Wide data tables (game lists, move history, captures) would otherwise blow
+	   out the page width. Let each scroll horizontally on its own. */
+	table {
+		display: block;
+		max-width: 100%;
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	#gamebody,
+	#captures,
+	#gamenav {
+		max-width: 100%;
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	/* Touch-friendly form controls. 16px text also stops iOS from zooming in
+	   when a field gains focus. */
+	input,
+	select,
+	textarea,
+	.button,
+	button {
+		font-size: 16px;
+	}
+
+	.button,
+	input[type="submit"],
+	input[type="button"] {
+		padding: 8px 12px;
+		min-height: 40px;
+	}
+
+	input[type="text"],
+	input[type="password"],
+	select,
+	textarea {
+		min-height: 38px;
+		max-width: 100%;
+		box-sizing: border-box;
+	}
+}
