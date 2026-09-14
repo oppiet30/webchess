@@ -1,10 +1,11 @@
 # AGENTS.md
 
 WebChess is a plain-PHP chess web app (originally from 2013, modernized in 2026).
-No framework, no Composer, no autoloader, no build step. PHP is verified with
-`php -l`, and the plain-JS chess engine in `javascript/` is unit-tested under Node
-via `npm test` (see "Verification" below). See `docs/MODERNIZATION.md` for the
-planned modernization phases.
+The runtime has no framework, no Composer autoload, no build step. Dev tooling
+uses Composer (`composer.json`) for PHPUnit and PHPStan only; the app itself is
+verified with `php -l`, `npm test` (JS chess engine), `vendor/bin/phpunit` and
+`vendor/bin/phpstan analyse` — see "Verification" below. See
+`docs/MODERNIZATION.md` for the planned modernization phases.
 
 ## Runtime / setup
 
@@ -61,7 +62,19 @@ planned modernization phases.
   expect browser globals (`board`, `numMoves`, `chessHistory`, piece constants, `alert`).
   Board coordinates in tests: `board[row][col]`, row = rank − 1, col = file (a=0).
 - `npm run lint` (or `scripts/lint-php.sh`) runs `php -l` over every `*.php` and `*.inc`.
-- GitHub Actions (`.github/workflows/ci.yml`) runs both on every push/PR.
+- `composer test` runs the PHPUnit baseline (`tests/php/`): `security.php`
+  password/escaping helpers, the pure helpers in `chessutils.php`, and the legacy
+  engine `chess.inc` (FEN round-trip, move legality, notation). `phpunit.xml.dist`
+  bootstraps via `tests/php/bootstrap.php`, which loads these files through
+  `include_legacy_php()` — PHPUnit includes the bootstrap inside a method, so the
+  legacy files' top-level variables would otherwise land in a local scope and be
+  lost (chess.inc reads them via `global`).
+- `composer analyse` runs PHPStan at level 5 over the web root; the existing
+  160 findings are captured in `phpstan-baseline.neon`, so CI only fails on *new*
+  findings.
+- GitHub Actions (`.github/workflows/ci.yml`) runs php -l, `npm test`,
+  `vendor/bin/phpunit` and `vendor/bin/phpstan analyse` on every push/PR.
+  PHPUnit 13 requires PHP ≥ 8.3 (CI uses 8.4); the app runtime itself needs 8.1+.
 - The engine has two known design quirks to leave alone:
   - `isValidMove*` for non-king pieces does **not** reject moving onto a friendly piece;
     the UI layer (`squareclicked.js`) prevents that. King moves do reject friendly squares.

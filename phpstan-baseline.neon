@@ -1,0 +1,349 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Variable \$CFG_TABLE might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: capt.php
+
+		-
+			message: '#^If condition is always false\.$#'
+			identifier: if.alwaysFalse
+			count: 1
+			path: chess.php
+
+		-
+			message: '#^Variable \$CFG_IMAGE_EXT might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: chess.php
+
+		-
+			message: '#^Variable \$CFG_MINAUTORELOAD might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: chess.php
+
+		-
+			message: '#^Variable \$CFG_TABLE might not be defined\.$#'
+			identifier: variable.undefined
+			count: 4
+			path: chess.php
+
+		-
+			message: '#^Variable \$board might not be defined\.$#'
+			identifier: variable.undefined
+			count: 8
+			path: chess.php
+
+		-
+			message: '#^Variable \$history might not be defined\.$#'
+			identifier: variable.undefined
+			count: 4
+			path: chess.php
+
+		-
+			message: '#^Variable \$isDrawRequested might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: chess.php
+
+		-
+			message: '#^Variable \$isGameOver might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: chess.php
+
+		-
+			message: '#^Variable \$isUndoRequested might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: chess.php
+
+		-
+			message: '#^Variable \$numMoves might not be defined\.$#'
+			identifier: variable.undefined
+			count: 6
+			path: chess.php
+
+		-
+			message: '#^Variable \$playersColor might not be defined\.$#'
+			identifier: variable.undefined
+			count: 3
+			path: chess.php
+
+		-
+			message: '#^If condition is always false\.$#'
+			identifier: if.alwaysFalse
+			count: 4
+			path: chessdb.php
+
+		-
+			message: '#^Left side of && is always true\.$#'
+			identifier: booleanAnd.leftAlwaysTrue
+			count: 1
+			path: chessutils.php
+
+		-
+			message: '#^Variable \$code might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: chessutils.php
+
+		-
+			message: '#^Variable \$name might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: chessutils.php
+
+		-
+			message: '#^Variable \$newCol might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: chessutils.php
+
+		-
+			message: '#^Variable \$pgnCode might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: chessutils.php
+
+		-
+			message: '#^Comparison operation "\>" between int\<1, max\> and 0 is always true\.$#'
+			identifier: greater.alwaysTrue
+			count: 1
+			path: gui.php
+
+		-
+			message: '#^Function add_Move not found\.$#'
+			identifier: function.notFound
+			count: 2
+			path: gui.php
+
+		-
+			message: '#^Function getResult not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: gui.php
+
+		-
+			message: '#^Function set_FEN not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: gui.php
+
+		-
+			message: '#^Variable \$moves might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: gui.php
+
+		-
+			message: '#^Variable \$CFG_NEW_USERS_ALLOWED might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: index.php
+
+		-
+			message: '#^Call to function fixOldPHPVersions\(\) on a separate line has no effect\.$#'
+			identifier: function.resultUnused
+			count: 1
+			path: inviteplayer.php
+
+		-
+			message: '#^Variable \$CFG_TABLE might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: inviteplayer.php
+
+		-
+			message: '#^If condition is always false\.$#'
+			identifier: if.alwaysFalse
+			count: 1
+			path: lang.php
+
+		-
+			message: '#^Variable \$CFG_IMAGE_EXT might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: local.php
+
+		-
+			message: '#^Variable \$CFG_MAINPAGE might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: mailmsginvite.php
+
+		-
+			message: '#^Variable \$opponent might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: mailmsginvite.php
+
+		-
+			message: '#^Variable \$CFG_MAINPAGE might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: mailmsgmove.php
+
+		-
+			message: '#^Variable \$gameID might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: mailmsgmove.php
+
+		-
+			message: '#^Variable \$move might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: mailmsgmove.php
+
+		-
+			message: '#^Variable \$opponent might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: mailmsgmove.php
+
+		-
+			message: '#^Variable \$CFG_MAINPAGE might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: mailmsgresign.php
+
+		-
+			message: '#^Variable \$gameID might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: mailmsgresign.php
+
+		-
+			message: '#^Variable \$opponent might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: mailmsgresign.php
+
+		-
+			message: '#^Variable \$CFG_MAINPAGE might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: mailmsgtest.php
+
+		-
+			message: '#^Function gettext invoked with 2 parameters, 1 required\.$#'
+			identifier: arguments.count
+			count: 1
+			path: mailmsgwithdraw.php
+
+		-
+			message: '#^Variable \$CFG_MAINPAGE might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: mailmsgwithdraw.php
+
+		-
+			message: '#^Variable \$opponent might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: mailmsgwithdraw.php
+
+		-
+			message: '#^Parameter \#4 \$month of function mktime expects int\|null, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: mainmenu.php
+
+		-
+			message: '#^Parameter \#6 \$year of function mktime expects int\|null, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: mainmenu.php
+
+		-
+			message: '#^Variable \$CFG_EXPIREGAME might not be defined\.$#'
+			identifier: variable.undefined
+			count: 3
+			path: mainmenu.php
+
+		-
+			message: '#^Variable \$CFG_MINAUTORELOAD might not be defined\.$#'
+			identifier: variable.undefined
+			count: 8
+			path: mainmenu.php
+
+		-
+			message: '#^Variable \$CFG_NICKCHANGEALLOWED might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: mainmenu.php
+
+		-
+			message: '#^Variable \$CFG_TABLE might not be defined\.$#'
+			identifier: variable.undefined
+			count: 48
+			path: mainmenu.php
+
+		-
+			message: '#^Variable \$CFG_USEEMAILNOTIFICATION might not be defined\.$#'
+			identifier: variable.undefined
+			count: 8
+			path: mainmenu.php
+
+		-
+			message: '#^Variable \$CFG_MINAUTORELOAD might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: newuser.php
+
+		-
+			message: '#^Variable \$CFG_NEW_USERS_ALLOWED might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: newuser.php
+
+		-
+			message: '#^Variable \$CFG_USEEMAILNOTIFICATION might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: newuser.php
+
+		-
+			message: '#^Variable \$CFG_TABLE might not be defined\.$#'
+			identifier: variable.undefined
+			count: 6
+			path: opponentspassword.php
+
+		-
+			message: '#^Variable \$CFG_TABLE might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: sendmessage.php
+
+		-
+			message: '#^File ends with a trailing whitespace\. This may cause problems when running the code in the web browser\. Remove the closing \?\> mark or remove the whitespace\.$#'
+			identifier: whitespace.fileEnd
+			count: 1
+			path: sessioncheck.php
+
+		-
+			message: '#^Variable \$CFG_SESSIONTIMEOUT might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: sessioncheck.php
+
+		-
+			message: '#^File ends with a trailing whitespace\. This may cause problems when running the code in the web browser\. Remove the closing \?\> mark or remove the whitespace\.$#'
+			identifier: whitespace.fileEnd
+			count: 1
+			path: undo.php
+
+		-
+			message: '#^Call to function fixOldPHPVersions\(\) on a separate line has no effect\.$#'
+			identifier: function.resultUnused
+			count: 1
+			path: viewmessage.php
+
+		-
+			message: '#^Variable \$CFG_TABLE might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: viewmessage.php

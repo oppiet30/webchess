@@ -1,19 +1,23 @@
-# WebChess modernization plan (Phase 0 proposal)
+# WebChess modernization plan
 
-Status: **proposal** — nothing here has been implemented beyond the Phase 0 safety
-net (`test/`, `scripts/lint-php.sh`, `.github/workflows/ci.yml`).
+Status: Phase 0 (JS engine harness + PHP lint + CI) and Phase 1 groundwork
+(PHPUnit 13 baseline + PHPStan level-5 baseline) are **done**. The remaining
+Phase 1 work (Composer PSR-4 namespaces, front controller, split `mainmenu.php`,
+`GameService`) is in progress.
 
 ## Why this plan exists
 
 The 2026 release modernized the **data and auth layers only**. The app is still:
 
-- Plain standalone PHP entrypoints with no Composer/autoloader.
+- Plain standalone PHP entrypoints with no runtime Composer/autoloader (dev
+  tooling now uses Composer for PHPUnit + PHPStan).
 - A 1,423-line `mainmenu.php` god-file (login, registration, preferences,
   invites, game lists, logout).
 - An XHTML 1.0 / table-era front end whose rendered HTML and embedded JS
   (`var gameId = ...`, `writeJSboard()`, `writeJSHistory()`) are a contract the
   JS depends on.
-- Zeros tests, no CI.
+- Zero runtime tests, no CI for the app itself (CI runs engine tests, lint,
+  PHPUnit baseline, and PHPStan on new findings).
 
 ## Verified architecture facts
 
@@ -34,15 +38,31 @@ The 2026 release modernized the **data and auth layers only**. The app is still:
 
 ## Suggested phases (each leaves a runnable app)
 
-### Phase 0 — Safety net (DONE for engine + lint + CI)
+### Phase 0 — Safety net (DONE)
 - Node test harness (`test/engine/`) loading the real `validation.js` /
   `isCheckMate.js` / `chessutils.js` under `node --test`, no build step.
 - `scripts/lint-php.sh`: `php -l` over every `*.php` and `*.inc`.
 - GitHub Actions running both (`npm test`, `scripts/lint-php.sh`).
+- Found and fixed `genAllMoves()` color-comparison bug (2013-era), which made
+  `countMoves()` always return 0 and broke stalemate detection at runtime.
 
-### Phase 1 — Server cleanup (behavior-preserving)
-- Composer + PSR-4/namespaces; a single front-controller router replacing the
-  standalone entrypoints.
+### Phase 1 — Server cleanup (partially done; remaining work in progress)
+**Done (groundwork):**
+- `composer.json` with PHPUnit 13 + PHPStan 2.2 (dev-only; no runtime
+  autoloader).
+- PHPUnit 13 baseline covering `security.php` (password hashing, MD5 migration,
+  escaping), `chessutils.php` (pure helpers), and the legacy PHP engine
+  `chess.inc` (FEN round-trip, long-algebraic move replay, castling/promotion
+  notation, illegal-move rejection, check detection).
+- PHPStan level 5 over the whole web root; 160 existing findings captured in
+  `phpstan-baseline.neon` — CI fails only on *new* findings.
+- Bootstrap workaround: `include_legacy_php()` in `tests/php/bootstrap.php`
+  hoists `chess.inc`'s top-level variables into `$GLOBALS` (PHPUnit includes
+  the bootstrap inside a method, so plain `require` leaks to local scope).
+
+**Remaining Phase 1 work (not yet started):**
+- PSR-4/namespaces; a single front-controller router replacing standalone
+  entrypoints.
 - Split `mainmenu.php` into controllers (Auth / Profile / GameList / Messages).
 - A `GameService` wrapping `chessdb.php` save/load + `move.php` validation.
 - Must keep: `h()`, `csrf_check()`, prepared statements, participant checks.

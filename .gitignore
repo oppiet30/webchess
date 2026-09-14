@@ -1,6 +1,11 @@
 # Local secrets / environment-specific configuration
 config.local.php
 
+# Composer / PHP tooling
+/vendor/
+.phpunit.cache/
+.phpstan/
+
 # OS / editor cruft
 .DS_Store
 Thumbs.db
