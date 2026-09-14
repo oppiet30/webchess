@@ -7,12 +7,6 @@ parameters:
 			path: capt.php
 
 		-
-			message: '#^If condition is always false\.$#'
-			identifier: if.alwaysFalse
-			count: 1
-			path: chess.php
-
-		-
 			message: '#^Variable \$CFG_IMAGE_EXT might not be defined\.$#'
 			identifier: variable.undefined
 			count: 1
@@ -28,48 +22,6 @@ parameters:
 			message: '#^Variable \$CFG_TABLE might not be defined\.$#'
 			identifier: variable.undefined
 			count: 4
-			path: chess.php
-
-		-
-			message: '#^Variable \$board might not be defined\.$#'
-			identifier: variable.undefined
-			count: 8
-			path: chess.php
-
-		-
-			message: '#^Variable \$history might not be defined\.$#'
-			identifier: variable.undefined
-			count: 4
-			path: chess.php
-
-		-
-			message: '#^Variable \$isDrawRequested might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: chess.php
-
-		-
-			message: '#^Variable \$isGameOver might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: chess.php
-
-		-
-			message: '#^Variable \$isUndoRequested might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: chess.php
-
-		-
-			message: '#^Variable \$numMoves might not be defined\.$#'
-			identifier: variable.undefined
-			count: 6
-			path: chess.php
-
-		-
-			message: '#^Variable \$playersColor might not be defined\.$#'
-			identifier: variable.undefined
-			count: 3
 			path: chess.php
 
 		-

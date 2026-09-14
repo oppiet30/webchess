@@ -49,6 +49,8 @@ final class TestDatabase
            loaded by tests/php/bootstrap.php; only the DB/game files remain. */
         include_legacy_php(__DIR__ . '/../../../newgame.php');
         include_legacy_php(__DIR__ . '/../../../chessdb.php');
+        include_legacy_php(__DIR__ . '/../../../move.php');
+        include_legacy_php(__DIR__ . '/../../../undo.php');
         include_legacy_php(__DIR__ . '/../../../connectdb.php');
 
         self::$available = true;

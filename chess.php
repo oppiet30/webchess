@@ -25,6 +25,9 @@
 		include_once 'lang.php';
 	}
 
+	/* namespaced classes (PSR-4 autoloader, WebChess\ -> lib/) */
+	require __DIR__ . '/vendor/autoload.php';
+
 	/* start a hardened session */
 	secure_session_start();
 
@@ -36,6 +39,8 @@
 		require 'chessutils.php';
 	require 'gui.php';
 	require 'chessdb.php';
+	/* move.php / undo.php hold the server-side move, castling, en-passant and
+	   promotion validation / undo helpers used by the GameService wrapper. */
 	require 'move.php';
 	require 'undo.php';
 
@@ -74,91 +79,32 @@
 		}
 	}
 
-	$isInCheck = (isset($_POST['isInCheck']) && ($_POST['isInCheck'] == 'true'));
-	$isCheckMate = false;
-	$isPromoting = false;
-	$isUndoing = false;
-	loadHistory();
-	loadGame();
-	processMessages();
+	/* Delegate the entire state-change chain — undo, promotion (with server-side
+	   validation), the move + castling + en-passant validation, and the
+	   incomplete-promotion detection (former lines 77-161) — to the GameService
+	   wrapper, which runs the same legacy functions against a parameterized
+	   $_POST / $_SESSION and returns the resulting state as an array.
+	   CSRF + participant checks above still guard every state-changing POST. */
+	$_gameState = (new \WebChess\Game\GameService())->applyStateChange(
+		(int)$_SESSION['gameID'],
+		(int)$_SESSION['playerID'],
+		$_SESSION['isSharedPC'],
+		$_POST
+	);
 
-	if ($isUndoing)
-	{
-		doUndo();
-		saveGame();
-	}
-	elseif (!empty($_POST['promotion']) && isset($_POST['toRow']) && ('' !== $_POST['toRow']) && isset($_POST['toCol']) && ('' !== $_POST['toCol']))
-	{
-		/* validate the promotion on the server so a forged request cannot
-		   conjure an arbitrary piece (or a 2nd king) onto any square */
-		if (isValidPromotionServer($_POST['toRow'], $_POST['toCol'], $_POST['promotion']))
-		{
-			savePromotion();
-			$board[$_POST['toRow']][$_POST['toCol']] = ((int)$_POST['promotion']) | ($board[$_POST['toRow']][$_POST['toCol']] & BLACK);
-			saveGame();
-		}
-	}
-	elseif (
-		isset($_POST['fromRow']) && isset($_POST['fromCol']) && isset($_POST['toRow']) && isset($_POST['toCol'])
-		&& ('' !== $_POST['fromRow']) && ('' !== $_POST['fromCol']) && ('' !== $_POST['toRow']) && ('' !== $_POST['toCol'])
-	) // END elseif
-	{
-		/* ensure it's the current player moving				 */
-		/* NOTE: if not, this will currently ignore the command...               */
-		/*       perhaps the status should be instead?                           */
-		/*       (Could be confusing to player if they double-click or something */
-		$tmpIsValid = true;
-		if (($numMoves == -1) || ($numMoves % 2 == 1))
-		{
-			/* White's move... ensure that piece being moved is white */
-			if ((($board[$_POST['fromRow']][$_POST['fromCol']] & BLACK) != 0) || ($board[$_POST['fromRow']][$_POST['fromCol']] == 0))
-				/* invalid move */
-				$tmpIsValid = false;
-		}
-		else
-		{
-			/* Black's move... ensure that piece being moved is black */
-			if ((($board[$_POST['fromRow']][$_POST['fromCol']] & BLACK) != BLACK) || ($board[$_POST['fromRow']][$_POST['fromCol']] == 0))
-				/* invalid move */
-				$tmpIsValid = false;
-		}
-
-		/* A king stepping two files is a castling attempt: validate it on the
-		   server so a forged request cannot corrupt the board (see move.php). */
-		if ($tmpIsValid
-			&& (($board[$_POST['fromRow']][$_POST['fromCol']] & COLOR_MASK) == KING)
-			&& ($_POST['fromRow'] == $_POST['toRow'])
-			&& (abs((int)$_POST['toCol'] - (int)$_POST['fromCol']) == 2))
-		{
-			if (!isValidCastlingServer($_POST['fromRow'], $_POST['fromCol'], $_POST['toRow'], $_POST['toCol']))
-				$tmpIsValid = false;
-		}
-
-		/* A pawn stepping diagonally onto an empty square is an en-passant claim;
-		   validate it server-side so a forged move cannot delete a pawn illegally. */
-		if ($tmpIsValid
-			&& (($board[$_POST['fromRow']][$_POST['fromCol']] & COLOR_MASK) == PAWN)
-			&& ($_POST['toCol'] != $_POST['fromCol'])
-			&& ($board[$_POST['toRow']][$_POST['toCol']] == 0))
-		{
-			if (!isValidEnPassantServer($_POST['fromRow'], $_POST['fromCol'], $_POST['toRow'], $_POST['toCol']))
-				$tmpIsValid = false;
-		}
-
-		if ($tmpIsValid)
-		{
-			saveHistory();
-			doMove();
-			saveGame();
-		}
-	}
-	elseif($numMoves >= 0 && $history[$numMoves]['curPiece'] == 'pawn' && $history[$numMoves]['promotedTo'] == null)
-	{	// Incomplete promotion?
-		if($history[$numMoves]['toRow'] == 7 || $history[$numMoves]['toRow'] == 0)
-		{
-			$isPromoting = true;
-		}
-	}
+	/* Feed the state back into the legacy variables the template / gui reads. */
+	$board          = $_gameState['board'];
+	$history        = $_gameState['history'];
+	$numMoves       = $_gameState['numMoves'];
+	$playersColor   = $_gameState['playersColor'];
+	$isInCheck      = $_gameState['isInCheck'];
+	$isPromoting    = $_gameState['isPromoting'];
+	$isUndoing      = $_gameState['isUndoing'];
+	$isCheckMate    = $_gameState['isCheckMate'];
+	$isUndoRequested = $_gameState['isUndoRequested'];
+	$isDrawRequested = $_gameState['isDrawRequested'];
+	$isGameOver     = $_gameState['isGameOver'];
+	$statusMessage  = $_gameState['statusMessage'];
 
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"

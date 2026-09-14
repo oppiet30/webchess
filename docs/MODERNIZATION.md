@@ -4,8 +4,9 @@ Status: Phase 0 (JS engine harness + PHP lint + CI) and Phase 1 groundwork
 (PHPUnit 13 baseline + PHPStan level-5 baseline) are **done**. Phase 1's
 autoloading + `mainmenu.php` split is **done** (Composer PSR-4 `WebChess\` →
 `lib/`, `UserLevel`/`PlayerColor` value objects, `MainmenuController` extracting
-the whole POST switch, tested against a MariaDB test DB). Remaining Phase 1 work
-(front controller, `GameService`, splitting more entrypoints) is in progress.
+the whole POST switch, tested against a MariaDB test DB). The `GameService`
+wrapper + `chess.php` delegation are **done** (see below). Remaining Phase 1
+work (front controller, splitting more entrypoints) is in progress.
 
 ## Why this plan exists
 
@@ -81,9 +82,35 @@ The 2026 release modernized the **data and auth layers only**. The app is still:
   `webchess_test` from `docs/tables/*.txt`. These tests **skip automatically**
   when no DB is configured (CI has none).
 
+**This slice (GameService):**
+- `WebChess\Game\GameService::applyStateChange(int $gameId, int $playerId,
+  bool $isSharedPC, array $post): array` wraps the legacy chessdb/move/undo
+  functions (now also booted by `TestDatabase`) and reproduces the old
+  `chess.php` state-change chain verbatim: load history/game, process
+  messages, then undo / promotion (server-validated) / move (color, castling,
+  en-passant re-validation) / incomplete-promotion detection. It parameterizes
+  `$_POST`/`$_SESSION` (saved/restored in a `try/finally`) and returns
+  `{board, history, numMoves, playersColor, isInCheck, isPromoting, isUndoing,
+  isCheckMate, isUndoRequested, isDrawRequested, isGameOver, statusMessage}`.
+  CSRF + participant checks stay in the entrypoint.
+- `chess.php` now requires `vendor/autoload.php` and replaces its whole
+  state-change chain with a single `GameService` call that feeds the returned
+  state back into the legacy template variables. This *removed* 25 legacy
+  PHPStan findings from the baseline (123 → 98); the one remaining
+  `@phpstan-ignore if.alwaysFalse` on `if ($isUndoing)` is documented in
+  `AGENTS.md`.
+- `tests/php/Game/GameServiceTest.php`: 16 DB integration tests covering the
+  full chain — legal & out-of-turn moves, castling validation, both en-passant
+  directions (the engine only accepts **black**-pawn captures; the FIDE
+  white-side `exd6` e.p. is rejected and pinned), promotion + forged-promotion
+  rejection, undo/draw/resign on shared and separate PCs, and checkmate. Tests
+  must stagger timestamps/`sleep(1)` because of the `(timeOfMove, gameID)` PK
+  collision.
+- Manually smoke-tested over Apache (webchess.local): login, board load,
+  legal white/black plies, and an illegal out-of-turn move being ignored.
+
 **Remaining Phase 1 work (not yet started):**
 - A single front-controller router replacing standalone entrypoints.
-- A `GameService` wrapping `chessdb.php` save/load + `move.php` validation.
 - Must keep: `h()`, `csrf_check()`, prepared statements, participant checks.
 
 ### Phase 2 — Correctness / trust

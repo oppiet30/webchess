@@ -38,13 +38,18 @@ modernization phases.
 
 ## Architecture
 
-- Entrypoints are standalone scripts in the web root (`index.php`, `move.php`, `newgame.php`,
-  `undo.php`, `inviteplayer.php`, `sendmessage.php`, ...). Shared code is in `chess.inc`,
-  `chessutils.php`, `chessdb.php` (`saveGame()`, `savePromotion()`, undo/draw/resign handling),
-  `gui.php` (renders the board + embedded JS), `security.php`, `db.php`.
+- Entrypoints are standalone scripts in the web root (`index.php`, `chess.php`, `mainmenu.php`,
+  `inviteplayer.php`, `sendmessage.php`, ...). Shared code is in `chessdb.php` (`saveGame()`,
+  `savePromotion()`, undo/draw/resign processing), `move.php` / `undo.php` (server-side move,
+  castling, en-passant and promotion validation / undo helpers), `gui.php` (renders the board +
+  embedded JS), `chessutils.php`, `security.php`, `db.php`.
+- `chess.php` delegates its entire POST state-change chain (undo / promotion / move with castling
+  & en-passant validation / incomplete-promotion detection) to `WebChess\Game\GameService`
+  (`lib/Game/GameService.php`), which runs the legacy functions against a parameterized
+  `$_POST` / `$_SESSION` and returns the resulting state array. CSRF + participant checks stay
+  in the entrypoint (`csrf_check()` / `requirePlayerInGame()`).
 - Move legality is validated client-side in `javascript/validation.js`; the server re-validates
-  castling, promotion and en-passant in `chessdb.php` before saving. A forged move must never
-  corrupt the board.
+  castling, promotion and en-passant before saving. A forged move must never corrupt the board.
 - Move notation is WebChess long-algebraic (`1. e2-e4 e7-e5 2. Ng1-f3`); PGN import/export
   (`javascript/localpgn.js` + `openpgn.php`) additionally uses standard SAN.
 - `local.php` is a login-free, DB-free hot-seat game: everything stays in the browser, nothing
@@ -56,6 +61,16 @@ modernization phases.
   in `locale/`. Most text is plain inline strings.
 - Board appearance: CSS board colour schemes and move notation live in
   `boardcolors.css` / `chess.css` / `responsive.css`; piece sets are images under `images/`.
+- En passant is asymmetric (legacy engine, pinned by tests): only a **black** pawn can e.p.
+  a white pawn's double-advance — the app places the captured pawn at `(fromRow, toCol)`
+  (same rank as the capturer) and requires the previous ply to be a 2-square pawn advance
+  landing exactly there. White-facing FIDE-style captures (`1. e4 d5 2. exd6` e.p.) are
+  rejected server-side. `GameServiceTest` pins both directions.
+- The `history` primary key is `(timeOfMove, gameID)` and plies are stamped with `NOW()`:
+  two legal plies within the same second collide and surface as "WebChess encountered a
+  database error." This pre-existing data-model limitation is due for a Phase 2 fix; tests
+  must stagger fixture timestamps (and pause ≥1s between live plies) to avoid it. A fast
+  real-world game can legitimately hit it today.
 
 ## Verification
 
@@ -73,15 +88,22 @@ modernization phases.
   `include_legacy_php()` — PHPUnit includes the bootstrap inside a method, so the
   legacy files' top-level variables would otherwise land in a local scope and be
   lost (chess.inc reads them via `global`).
-- DB-backed integration tests (`tests/php/Http/`) exercise `MainmenuController`
-  against a real MariaDB database named by the `WEBCHESS_DB_*` env vars (or
-  `config.local.php`); rebuild it with `scripts/rebuild-test-db.sh` from
-  `docs/tables/*.txt`. They **skip automatically** when no DB is configured, so
-  CI (which has none) stays green.
+- DB-backed integration tests (`tests/php/Http/`, `tests/php/Game/`) exercise `MainmenuController`
+  and `WebChess\Game\GameService` (the full chess.php state-change chain: move / castling /
+  en-passant / promotion / undo / draw / resign) against a real MariaDB database named by the
+  `WEBCHESS_DB_*` env vars (or `config.local.php`); rebuild it with
+  `scripts/rebuild-test-db.sh` from `docs/tables/*.txt`. They **skip automatically** when no DB
+  is configured, so CI (which has none) stays green. `TestDatabase` boots the legacy files the
+  service needs (`config.php`, `newgame.php`, `chessdb.php`, `move.php`, `undo.php`,
+  `connectdb.php`).
 - `composer analyse` runs PHPStan at level 5 over the web root; the existing
   findings are captured in `phpstan-baseline.neon`, so CI only fails on *new*
-  findings. Regenerate the baseline after moving code: `vendor/bin/phpstan
-  analyse --generate-baseline`.
+  findings. Note: PHPStan cannot see that legacy functions
+  (e.g. `processMessages()`) mutate globals through a class-method scope, so
+  `GameService::applyStateChange()` carries a targeted `@phpstan-ignore if.alwaysFalse`
+  on `if ($isUndoing)` — the identical pattern in `chess.php` is unflagged only because
+  PHPStan treats file-scope globals differently. Regenerate the baseline after moving
+  code: `vendor/bin/phpstan analyse --generate-baseline`.
 - GitHub Actions (`.github/workflows/ci.yml`) runs php -l, `npm test`,
   `vendor/bin/phpunit` and `vendor/bin/phpstan analyse` on every push/PR.
   PHPUnit 13 requires PHP ≥ 8.3 (CI uses 8.4); the app runtime itself needs 8.1+.
