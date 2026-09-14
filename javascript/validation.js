@@ -1070,7 +1070,7 @@ function genAllMoves(myColor)
 	{
 		for (var j = 0; j < 8; j++)		// Check all columns
 		{
-			if(board[i][j] != 0 && ((board[i][j] & BLACK) == myColor))
+			if(board[i][j] != 0 && ((board[i][j] & BLACK) == (myColor == 'black' ? BLACK : WHITE)))
 			{
 				if(typeof moves[i] == 'undefined') {
 					moves[i] = new Array();
