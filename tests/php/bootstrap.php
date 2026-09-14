@@ -17,6 +17,10 @@ declare(strict_types=1);
  * docs/MODERNIZATION.md.
  */
 
+if (is_file(__DIR__ . '/../../vendor/autoload.php')) {
+    require __DIR__ . '/../../vendor/autoload.php';
+}
+
 function include_legacy_php(string $file): void
 {
     require $file;

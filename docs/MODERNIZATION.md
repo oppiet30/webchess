@@ -1,9 +1,11 @@
 # WebChess modernization plan
 
 Status: Phase 0 (JS engine harness + PHP lint + CI) and Phase 1 groundwork
-(PHPUnit 13 baseline + PHPStan level-5 baseline) are **done**. The remaining
-Phase 1 work (Composer PSR-4 namespaces, front controller, split `mainmenu.php`,
-`GameService`) is in progress.
+(PHPUnit 13 baseline + PHPStan level-5 baseline) are **done**. Phase 1's
+autoloading + `mainmenu.php` split is **done** (Composer PSR-4 `WebChess\` →
+`lib/`, `UserLevel`/`PlayerColor` value objects, `MainmenuController` extracting
+the whole POST switch, tested against a MariaDB test DB). Remaining Phase 1 work
+(front controller, `GameService`, splitting more entrypoints) is in progress.
 
 ## Why this plan exists
 
@@ -46,24 +48,41 @@ The 2026 release modernized the **data and auth layers only**. The app is still:
 - Found and fixed `genAllMoves()` color-comparison bug (2013-era), which made
   `countMoves()` always return 0 and broke stalemate detection at runtime.
 
-### Phase 1 — Server cleanup (partially done; remaining work in progress)
+### Phase 1 — Server cleanup (done: groundwork, autoloader, mainmenu split)
 **Done (groundwork):**
-- `composer.json` with PHPUnit 13 + PHPStan 2.2 (dev-only; no runtime
-  autoloader).
+- `composer.json` with PHPUnit 13 + PHPStan 2.2 (dev-only, no runtime
+  autoloader) — later extended with a runtime PSR-4 autoloader.
 - PHPUnit 13 baseline covering `security.php` (password hashing, MD5 migration,
   escaping), `chessutils.php` (pure helpers), and the legacy PHP engine
   `chess.inc` (FEN round-trip, long-algebraic move replay, castling/promotion
   notation, illegal-move rejection, check detection).
-- PHPStan level 5 over the whole web root; 160 existing findings captured in
+- PHPStan level 5 over the whole web root; findings captured in
   `phpstan-baseline.neon` — CI fails only on *new* findings.
 - Bootstrap workaround: `include_legacy_php()` in `tests/php/bootstrap.php`
   hoists `chess.inc`'s top-level variables into `$GLOBALS` (PHPUnit includes
   the bootstrap inside a method, so plain `require` leaks to local scope).
 
+**Done (this slice):**
+- Runtime Composer autoloader: `"autoload": {"psr-4": {"WebChess\\": "lib/"}}`,
+  `require vendor/autoload.php` in `mainmenu.php`; deployments now need
+  `composer install --no-dev`. `config.php` defines are guarded so `lib/`
+  classes can re-include legacy files in test bootstrap contexts.
+- Value objects: `WebChess\Player\UserLevel` (label↔number mapping) and
+  `WebChess\Chess\PlayerColor` (`random` → coin flip) in `lib/`.
+- `mainmenu.php` slimmed 1,423 → 1,033 lines: the entire POST switch
+  (`NewUser`, `Login`, `Logout`, `InvitePlayer`, `ResponseToInvite`,
+  `WithdrawRequest`, `UpdatePersonalInfo`, `UpdatePrefs`, `TestEmail`,
+  `HideMessage`) moved to `WebChess\Http\MainmenuController::handle()`, which
+  returns `{tmpNewUser, errMsg}` and keeps csrf/session gating in `mainmenu.php`.
+- DB integration tests: `tests/php/Http/TestDatabase.php` boots legacy files
+  against a MariaDB database configured via `WEBCHESS_DB_*` env or
+  `config.local.php`; `tests/php/Http/MainmenuControllerTest.php` covers the
+  controller's persistent actions; `scripts/rebuild-test-db.sh` rebuilds
+  `webchess_test` from `docs/tables/*.txt`. These tests **skip automatically**
+  when no DB is configured (CI has none).
+
 **Remaining Phase 1 work (not yet started):**
-- PSR-4/namespaces; a single front-controller router replacing standalone
-  entrypoints.
-- Split `mainmenu.php` into controllers (Auth / Profile / GameList / Messages).
+- A single front-controller router replacing standalone entrypoints.
 - A `GameService` wrapping `chessdb.php` save/load + `move.php` validation.
 - Must keep: `h()`, `csrf_check()`, prepared statements, participant checks.
 

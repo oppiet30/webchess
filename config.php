@@ -59,21 +59,32 @@
 	$CFG_NEW_USERS_ALLOWED = true;
 
 	/* Application constants */
-	define('APP_NAME', 'WebChess'); // The name of the app that is shown in the title
-	define('APP_VERSION', '1.0.4'); // The version of the app
+	if (!defined('APP_NAME'))
+		define('APP_NAME', 'WebChess'); // The name of the app that is shown in the title
+	if (!defined('APP_VERSION'))
+		define('APP_VERSION', '1.0.4'); // The version of the app
 	
 	/* I18N constants */
-	define('I18N_GETTEXT_SUPPORT', false); // enable gettext for fetching translations
-	define('I18N_LOCALE', 'de_DE'); // locale to use (requires the webchess.mo file for the locale)
+	if (!defined('I18N_GETTEXT_SUPPORT'))
+		define('I18N_GETTEXT_SUPPORT', false); // enable gettext for fetching translations
+	if (!defined('I18N_LOCALE'))
+		define('I18N_LOCALE', 'de_DE'); // locale to use (requires the webchess.mo file for the locale)
 	
 	/* mysql table names */
-	define('communication', 'communication');
-	define('history', 'history');
-	define('games', 'games');
-	define('messages', 'messages');
-	define('pieces', 'pieces');
-	define('preferences', 'preferences');
-	define('players', 'players');
+	if (!defined('communication'))
+		define('communication', 'communication');
+	if (!defined('history'))
+		define('history', 'history');
+	if (!defined('games'))
+		define('games', 'games');
+	if (!defined('messages'))
+		define('messages', 'messages');
+	if (!defined('pieces'))
+		define('pieces', 'pieces');
+	if (!defined('preferences'))
+		define('preferences', 'preferences');
+	if (!defined('players'))
+		define('players', 'players');
 	
 	/* mysql table names
 	   Change these if your database needs different table names */

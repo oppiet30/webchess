@@ -267,25 +267,25 @@ parameters:
 		-
 			message: '#^Variable \$CFG_MINAUTORELOAD might not be defined\.$#'
 			identifier: variable.undefined
-			count: 8
+			count: 1
 			path: mainmenu.php
 
 		-
 			message: '#^Variable \$CFG_NICKCHANGEALLOWED might not be defined\.$#'
 			identifier: variable.undefined
-			count: 2
+			count: 1
 			path: mainmenu.php
 
 		-
 			message: '#^Variable \$CFG_TABLE might not be defined\.$#'
 			identifier: variable.undefined
-			count: 48
+			count: 26
 			path: mainmenu.php
 
 		-
 			message: '#^Variable \$CFG_USEEMAILNOTIFICATION might not be defined\.$#'
 			identifier: variable.undefined
-			count: 8
+			count: 1
 			path: mainmenu.php
 
 		-

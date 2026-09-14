@@ -1,15 +1,18 @@
 # AGENTS.md
 
 WebChess is a plain-PHP chess web app (originally from 2013, modernized in 2026).
-The runtime has no framework, no Composer autoload, no build step. Dev tooling
-uses Composer (`composer.json`) for PHPUnit and PHPStan only; the app itself is
-verified with `php -l`, `npm test` (JS chess engine), `vendor/bin/phpunit` and
-`vendor/bin/phpstan analyse` — see "Verification" below. See
-`docs/MODERNIZATION.md` for the planned modernization phases.
+The runtime has no framework and no build step, but does rely on Composer for
+PSR-4 autoloading of the namespaced classes in `lib/` (`WebChess\` → `lib/`,
+regenerated with `composer dump-autoload -o` after adding classes). Deployments
+need a `composer install --no-dev`. The app is verified with `php -l`,
+`npm test` (JS chess engine), `vendor/bin/phpunit` and `vendor/bin/phpstan analyse`
+— see "Verification" below. See `docs/MODERNIZATION.md` for the planned
+modernization phases.
 
 ## Runtime / setup
 
-- Requires PHP 8.1+ with `pdo_mysql`; MySQL/MariaDB. Verify with `php -l` only.
+- Requires PHP 8.1+ with `pdo_mysql` and Composer's `vendor/autoload.php`;
+  MySQL/MariaDB. Verify with `php -l` only.
 - DB credentials come from env vars `WEBCHESS_DB_HOST/USER/PASSWORD/NAME` or a git-ignored
   `config.local.php` (copy `config.local.sample.php`). `config.php` is committed and must
   stay secret-free.
@@ -62,16 +65,23 @@ verified with `php -l`, `npm test` (JS chess engine), `vendor/bin/phpunit` and
   expect browser globals (`board`, `numMoves`, `chessHistory`, piece constants, `alert`).
   Board coordinates in tests: `board[row][col]`, row = rank − 1, col = file (a=0).
 - `npm run lint` (or `scripts/lint-php.sh`) runs `php -l` over every `*.php` and `*.inc`.
-- `composer test` runs the PHPUnit baseline (`tests/php/`): `security.php`
-  password/escaping helpers, the pure helpers in `chessutils.php`, and the legacy
-  engine `chess.inc` (FEN round-trip, move legality, notation). `phpunit.xml.dist`
+- `composer test` runs the PHPUnit suite (`tests/php/`): `security.php`
+  password/escaping helpers, the pure helpers in `chessutils.php`, the legacy
+  engine `chess.inc` (FEN round-trip, move legality, notation), and the new
+  namespaced classes (`UserLevel`, `PlayerColor`). `phpunit.xml.dist`
   bootstraps via `tests/php/bootstrap.php`, which loads these files through
   `include_legacy_php()` — PHPUnit includes the bootstrap inside a method, so the
   legacy files' top-level variables would otherwise land in a local scope and be
   lost (chess.inc reads them via `global`).
+- DB-backed integration tests (`tests/php/Http/`) exercise `MainmenuController`
+  against a real MariaDB database named by the `WEBCHESS_DB_*` env vars (or
+  `config.local.php`); rebuild it with `scripts/rebuild-test-db.sh` from
+  `docs/tables/*.txt`. They **skip automatically** when no DB is configured, so
+  CI (which has none) stays green.
 - `composer analyse` runs PHPStan at level 5 over the web root; the existing
-  160 findings are captured in `phpstan-baseline.neon`, so CI only fails on *new*
-  findings.
+  findings are captured in `phpstan-baseline.neon`, so CI only fails on *new*
+  findings. Regenerate the baseline after moving code: `vendor/bin/phpstan
+  analyse --generate-baseline`.
 - GitHub Actions (`.github/workflows/ci.yml`) runs php -l, `npm test`,
   `vendor/bin/phpunit` and `vendor/bin/phpstan analyse` on every push/PR.
   PHPUnit 13 requires PHP ≥ 8.3 (CI uses 8.4); the app runtime itself needs 8.1+.

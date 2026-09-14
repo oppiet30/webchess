@@ -5,6 +5,11 @@
     "require": {
         "php": "^8.1"
     },
+    "autoload": {
+        "psr-4": {
+            "WebChess\\": "lib/"
+        }
+    },
     "require-dev": {
         "phpstan/phpstan": "^2.2",
         "phpunit/phpunit": "^13.3"
